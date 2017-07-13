@@ -1,0 +1,37 @@
+<f:be.container>
+
+	<div class="typo3-fullDoc">
+
+		<div id="typo3-docheader">
+			<div class="typo3-docheader-functions">
+				<div class="left">
+					<f:be.buttons.csh />
+					<f:be.buttons.csh />
+					<f:be.menus.actionMenu>
+						<f:be.menus.actionMenuItem label="{f:translate(key: 'LLL:EXT:imagickimg/Resources/Private/Language/locallang.xlf:module.info')}" controller="ImagickInfo" action="index" />
+						<f:be.menus.actionMenuItem label="{f:translate(key: 'LLL:EXT:imagickimg/Resources/Private/Language/locallang.xlf:module.tests')}" controller="ImagickTests" action="index" />
+					</f:be.menus.actionMenu>
+					<f:render section="button-toolbar" optional="true" />
+				</div>
+				<div class="right">
+				</div>
+			</div>
+			<div class="typo3-docheader-buttons">
+				<div class="left">
+				</div>
+				<div class="right">
+					<f:be.buttons.shortcut />
+				</div>
+			</div>
+		</div>
+
+		<div id="typo3-docbody">
+			<div id="typo3-inner-docbody">
+				<f:render section="content" />
+			</div>
+		</div>
+
+	</div>
+
+</f:be.container>
+

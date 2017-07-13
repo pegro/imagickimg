@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.0">
+	<file source-language="en" datatype="plaintext" original="messages" date="2016-10-17T20:22:32Z" product-name="imagickimg">
+		<header/>
+		<body>
+			<trans-unit id="image_effects.I.10">
+				<source>Sepia</source>
+			</trans-unit>
+			<trans-unit id="image_effects.I.11">
+				<source>Round corners</source>
+			</trans-unit>
+			<trans-unit id="image_effects.I.12">
+				<source>Polaroid</source>
+			</trans-unit>
+			<trans-unit id="php_ext_imagick">
+				<source>PHP extension Imagick</source>
+			</trans-unit>
+			<trans-unit id="no_imagick_title">
+				<source>Imagick is not loaded</source>
+			</trans-unit>
+			<trans-unit id="no_imagick_loaded">
+				<source>PHP extension Imagick is not loaded. All image processing is disabled.</source>
+			</trans-unit>
+			<trans-unit id="mlang_tabs_tab">
+				<source>Imagick test</source>
+			</trans-unit>
+			<trans-unit id="mlang_labels_tabdescr">
+				<source>This module allows you to check if your configuration of PHP extension Imagick is correct.</source>
+			</trans-unit>
+			<trans-unit id="mlang_labels_tablabel">
+				<source>PHP extension Imagick information &amp; test</source>
+			</trans-unit>
+			<trans-unit id="extmng.debug">
+				<source>Debug:Log debug information. Use only for ImagickImg debugging because this may slow down your website.</source>
+			</trans-unit>
+			<trans-unit id="extmng.windowing_filter">
+				<source>Windowing Filter:For resizing, resampling etc images</source>
+			</trans-unit>
+			<trans-unit id="extmng.images_dpi">
+				<source>Image resolution in DPI:Enter a number of DPI that Imagick will produce. Most computer screen use 72 dpi so it is a default value. Set to 0 if you want to use original images resolution.</source>
+			</trans-unit>
+			<trans-unit id="extmng.thumbnailing_method">
+				<source>Thumbnail creating method:Proportional images may be illegible. Cropped images will not show whole image. Sampled images are squized to given dimensions.</source>
+			</trans-unit>
+			<trans-unit id="extmng.show_test_module">
+				<source>Show ImagickTest:Backend module to test image processing with Imagick. Similar to Install Tool graphics tests.</source>
+			</trans-unit>
+			<trans-unit id="imagick.not.loaded.title">
+				<source>Imagick not loaded!</source>
+			</trans-unit>
+			<trans-unit id="imagick.not.loaded.message">
+				<source>PHP extension Imagick is not loaded. Imagickimg can not do image processing.</source>
+			</trans-unit>
+			<trans-unit id="module.info">
+				<source>Information</source>
+			</trans-unit>
+			<trans-unit id="module.info.title">
+				<source>PHP extension Imagick and ImageImagick version information</source>
+			</trans-unit>
+			<trans-unit id="module.info.version.imagick">
+				<source>PHP extension Imagick version</source>
+			</trans-unit>
+			<trans-unit id="module.info.version.im">
+				<source>ImageImagick version</source>
+			</trans-unit>
+			<trans-unit id="module.tests">
+				<source>Tests</source>
+			</trans-unit>
+			<trans-unit id="module.tests.title">
+				<source>Imagick graphics processing tests</source>
+			</trans-unit>
+			<trans-unit id="imagick_loaded">
+				<source>Imagick is loaded</source>
+			</trans-unit>
+		</body>
+	</file>
+</xliff>

@@ -1,0 +1,14 @@
+# cat=General; type=options[POINT,BOX,TRIANGLE,HERMITE,HANNING,HAMMING,BLACKMAN,GAUSSIAN,QUADRATIC,CUBIC,CATROM,MITCHELL,LANCZOS,BESSEL,SINC]; label=LLL:EXT:imagickimg/Resources/Private/Language/locallang.xlf:extmng.windowing_filter
+windowingFilter = CATROM
+
+# cat=General; type=int [0-300]; label=LLL:EXT:imagickimg/Resources/Private/Language/locallang.xlf:extmng.images_dpi
+imagesDPI = 72
+
+# cat=General; type=options[PROPORTIONAL,CROPPED,SAMPLED]; label=LLL:EXT:imagickimg/Resources/Private/Language/locallang.xlf:extmng.thumbnailing_method
+thumbnailingMethod = PROPORTIONAL
+
+# cat=Backend module; type=boolean; label=LLL:EXT:imagickimg/Resources/Private/Language/locallang.xlf:extmng.debug
+debug = 0
+
+# cat=Backend module; type=boolean; label=LLL:EXT:imagickimg/Resources/Private/Language/locallang.xlf:extmng.show_test_module
+showTestModule = 0
