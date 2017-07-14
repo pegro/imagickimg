@@ -201,21 +201,26 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 		}
 	}	
 
+	/***********************************
+	 *
+	 * Scaling, Dimensions of images
+	 *
+	 ***********************************/
 	/**
 	 * Converts $imagefile to another file in temp-dir of type $newExt (extension).
 	 *
-	 * @param	string		The image filepath
-	 * @param	string		New extension, eg. "gif", "png", "jpg", "tif". If $newExt is NOT set, the new imagefile will be of the original format. If newExt = 'WEB' then one of the web-formats is applied.
-	 * @param	string		Width. $w / $h is optional. If only one is given the image is scaled proportionally. If an 'm' exists in the $w or $h and if both are present the $w and $h is regarded as the Maximum w/h and the proportions will be kept
-	 * @param	string		Height. See $w
-	 * @param	string		Additional ImageMagick parameters.
-	 * @param	string		Refers to which frame-number to select in the image. '' or 0 will select the first frame, 1 will select the next and so on...
-	 * @param	array		An array with options passed to getImageScale (see this function).
-	 * @param	boolean		If set, then another image than the input imagefile MUST be returned. Otherwise you can risk that the input image is good enough regarding messures etc and is of course not rendered to a new, temporary file in typo3temp/. But this option will force it to.
-	 * @return	array		[0]/[1] is w/h, [2] is file extension and [3] is the filename.
-	 * @see getImageScale(), typo3/show_item.php, fileList_ext::renderImage(), tslib_cObj::getImgResource(), SC_tslib_showpic::show(), maskImageOntoImage(), copyImageOntoImage(), scale()
+	 * @param string $imagefile The image filepath
+	 * @param string $newExt New extension, eg. "gif", "png", "jpg", "tif". If $newExt is NOT set, the new imagefile will be of the original format. If newExt = 'WEB' then one of the web-formats is applied.
+	 * @param string $w Width. $w / $h is optional. If only one is given the image is scaled proportionally. If an 'm' exists in the $w or $h and if both are present the $w and $h is regarded as the Maximum w/h and the proportions will be kept
+	 * @param string $h Height. See $w
+	 * @param string $params Additional ImageMagick parameters.
+	 * @param string $frame Refers to which frame-number to select in the image. '' or 0 will select the first frame, 1 will select the next and so on...
+	 * @param array $options An array with options passed to getImageScale (see this function).
+	 * @param bool $mustCreate If set, then another image than the input imagefile MUST be returned. Otherwise you can risk that the input image is good enough regarding messures etc and is of course not rendered to a new, temporary file in typo3temp/. But this option will force it to.
+	 * @return array|null [0]/[1] is w/h, [2] is file extension and [3] is the filename.
+	 * @see getImageScale(), typo3/show_item.php, fileList_ext::renderImage(), \TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer::getImgResource(), SC_tslib_showpic::show(), maskImageOntoImage(), copyImageOntoImage(), scale()
 	 */
-	public function imageMagickConvert($imagefile, $newExt = '', $w = '', $h = '', $params = '', $frame = '', $options = '', $mustCreate = false)	{
+	public function imageMagickConvert($imagefile, $newExt = '', $w = '', $h = '', $params = '', $frame = '', $options = [], $mustCreate = false) {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($imagefile, $newExt, $w, $h, $params, $frame, $options, $mustCreate));
 
@@ -266,7 +271,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 				}
 				$info[0] = $data[0];
 				$info[1] = $data[1];
-				$frame = $this->noFramePrepended ? '' : intval($frame);
+				$frame = !$this->addFrameSelection ? '' : intval($frame);
 				if (!$params) {
 					$params = $this->cmds[$newExt];
 				}
@@ -369,14 +374,6 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 		}
 
 		$ret = '';
-		
-		// Unless noFramePrepended is set in the Install Tool, a frame number is added to
-		// select a specific page of the image (by default this will be the first page)
-		if (!$this->noFramePrepended) {
-			$frame = '[' . (int)$frame . ']';
-		} else {
-			$frame = '';
-		}
 
 		if (!GeneralUtility::isAbsPath($input)) {
 			$fileInput = GeneralUtility::getFileAbsFileName($input, FALSE);
@@ -392,6 +389,12 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		try {	
 			$newIm = new \Imagick($fileInput);
+
+			// If addFrameSelection is set in the Install Tool, a frame number is added to
+			// select a specific page of the image (by default this will be the first page)
+			if($this->addFrameSelection) {
+				$newIm->setIteratorIndex($frame);
+			}
 		
 			$newIm->writeImage($fileOutput);
 			$newIm->destroy();
@@ -467,22 +470,21 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	}
 
 	/**
-	 * Executes a ImageMagick "combine" (or composite in newer times) on four filenames - $input, $overlay and $mask as input files and $output as the output filename (written to)
+	 * Executes an ImageMagick "combine" (or composite in newer times) on four filenames - $input, $overlay and $mask as input files and $output as the output filename (written to)
 	 * Can be used for many things, mostly scaling and effects.
 	 *
-	 * @param	string		The relative (to PATH_site) image filepath, bottom file
-	 * @param	string		The relative (to PATH_site) image filepath, overlay file (top)
-	 * @param	string		The relative (to PATH_site) image filepath, the mask file (grayscale)
-	 * @param	string		The relative (to PATH_site) image filepath, output filename (written to)
-	 * @param	[type]		$handleNegation: ...
-	 * @return	void
+	 * @param string $input The relative (to PATH_site) image filepath, bottom file
+	 * @param string $overlay The relative (to PATH_site) image filepath, overlay file (top)
+	 * @param string $mask The relative (to PATH_site) image filepath, the mask file (grayscale)
+	 * @param string $output The relative (to PATH_site) image filepath, output filename (written to)
+	 * @return string
 	 */
-	public function combineExec($input, $overlay, $mask, $output, $handleNegation = FALSE) {
+	public function combineExec($input, $overlay, $mask, $output) {
 
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($input, $overlay, $mask, $output, $handleNegation));
+		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($input, $overlay, $mask, $output));
 	
 		if ($this->NO_IMAGICK) {
-			return parent::combineExec($input, $overlay, $mask, $output, $handleNegation);
+			return parent::combineExec($input, $overlay, $mask, $output);
 		}
 
 		if (!GeneralUtility::isAbsPath($input)) {
@@ -563,6 +565,101 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 		}
 		
 		return '';
+	}
+
+	/**
+	 * TODO convert to imagick
+	 *
+	 * Compressing a GIF file if not already LZW compressed.
+	 * This function is a workaround for the fact that ImageMagick and/or GD does not compress GIF-files to their minimun size (that is RLE or no compression used)
+	 *
+	 * The function takes a file-reference, $theFile, and saves it again through GD or ImageMagick in order to compress the file
+	 * GIF:
+	 * If $type is not set, the compression is done with ImageMagick (provided that $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path_lzw'] is pointing to the path of a lzw-enabled version of 'convert') else with GD (should be RLE-enabled!)
+	 * If $type is set to either 'IM' or 'GD' the compression is done with ImageMagick and GD respectively
+	 * PNG:
+	 * No changes.
+	 *
+	 * $theFile is expected to be a valid GIF-file!
+	 * The function returns a code for the operation.
+	 *
+	 * @param string $theFile Filepath
+	 * @param string $type See description of function
+	 * @return string Returns "GD" if GD was used, otherwise "IM" if ImageMagick was used. If nothing done at all, it returns empty string.
+	 */
+	public static function gifCompress($theFile, $type)
+	{
+		$gfxConf = $GLOBALS['TYPO3_CONF_VARS']['GFX'];
+		if (!$gfxConf['gif_compress'] || strtolower(substr($theFile, -4, 4)) !== '.gif') {
+			return '';
+		}
+
+		if (($type === 'IM' || !$type) && $gfxConf['processor_enabled'] && $gfxConf['processor_path_lzw']) {
+			// Use temporary file to prevent problems with read and write lock on same file on network file systems
+			$temporaryName = dirname($theFile) . '/' . md5(uniqid('', true)) . '.gif';
+			// Rename could fail, if a simultaneous thread is currently working on the same thing
+			if (@rename($theFile, $temporaryName)) {
+				/*
+				$cmd = CommandUtility::imageMagickCommand('convert', '"' . $temporaryName . '" "' . $theFile . '"', $gfxConf['processor_path_lzw']);
+				CommandUtility::exec($cmd);
+				*/
+				unlink($temporaryName);
+			}
+			$returnCode = 'IM';
+			if (@is_file($theFile)) {
+				GeneralUtility::fixPermissions($theFile);
+			}
+		} elseif (($type === 'GD' || !$type) && $gfxConf['gdlib'] && !$gfxConf['gdlib_png']) {
+			$tempImage = imagecreatefromgif($theFile);
+			imagegif($tempImage, $theFile);
+			imagedestroy($tempImage);
+			$returnCode = 'GD';
+			if (@is_file($theFile)) {
+				GeneralUtility::fixPermissions($theFile);
+			}
+		} else {
+			$returnCode = '';
+		}
+
+		return $returnCode;
+	}
+
+	/**
+	 * TODO convert to imagick
+	 *
+	 * Returns filename of the png/gif version of the input file (which can be png or gif).
+	 * If input file type does not match the wanted output type a conversion is made and temp-filename returned.
+	 *
+	 * @param string $theFile Filepath of image file
+	 * @param bool $output_png If TRUE, then input file is converted to PNG, otherwise to GIF
+	 * @return string|NULL If the new image file exists, its filepath is returned
+	 */
+	public static function readPngGif($theFile, $output_png = false)
+	{
+		if (!$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled'] || !@is_file($theFile)) {
+			return null;
+		}
+
+		$ext = strtolower(substr($theFile, -4, 4));
+		if ((string)$ext === '.png' && $output_png || (string)$ext === '.gif' && !$output_png) {
+			return $theFile;
+		}
+
+		if (!@is_dir(PATH_site . 'typo3temp/assets/images/')) {
+			GeneralUtility::mkdir_deep(PATH_site . 'typo3temp/assets/images/');
+		}
+		$newFile = PATH_site . 'typo3temp/assets/images/' . md5($theFile . '|' . filemtime($theFile)) . ($output_png ? '.png' : '.gif');
+		/*
+		$cmd = CommandUtility::imageMagickCommand(
+			'convert', '"' . $theFile . '" "' . $newFile . '"', $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path']
+		);
+		CommandUtility::exec($cmd);
+		*/
+		if (@is_file($newFile)) {
+			GeneralUtility::fixPermissions($newFile);
+			return $newFile;
+		}
+		return null;
 	}
 
 

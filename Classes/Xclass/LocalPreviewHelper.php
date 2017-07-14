@@ -46,6 +46,8 @@ class LocalPreviewHelper extends \TYPO3\CMS\Core\Resource\Processing\LocalPrevie
 	}
  
  	/**
+	 * TODO just override generatePreviewFromFile instead of complete process method
+	 *
 	 * This method actually does the processing of files locally
 	 *
 	 * takes the original file (on remote storages this will be fetched from the remote server)
