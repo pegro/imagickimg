@@ -14,13 +14,13 @@ $EM_CONF[$_EXTKEY] = array(
 	'title' => 'Image Processing via Imagick',
 	'description' => 'Resize FE and BE images with Imagick PHP extension. Use all image effects available in standard CE elements like Image or Text with image. Useful on servers where exec() function is disabled.',
 	'category' => 'misc',
-	'version' => '0.5.0',
+	'version' => '0.5.1',
 	'state' => 'beta',
 	'uploadfolder' => 0,
 	'createDirs' => '',
 	'clearcacheonload' => 0,
-	'author' => 'Radu Dumbraveanu, Dmitri Paramonov, Tomasz Krawczyk',
-	'author_email' => 'vundicind@gmail.com, dimirlan@mail.ru, tomasz@typo3.pl',
+	'author' => 'Radu Dumbraveanu, Dmitri Paramonov, Tomasz Krawczyk, Peter Große',
+	'author_email' => 'vundicind@gmail.com, dimirlan@mail.ru, tomasz@typo3.pl, pegro@friiks.de',
 	'author_company' => 'ImagickImgTeam',
 	'constraints' =>  array(
 		'depends' => array(
@@ -33,13 +33,3 @@ $EM_CONF[$_EXTKEY] = array(
 		),
 	),
 );
-/*
-	'autoload' => array(
-		'psr-4' => array(
-			'ImagickImgTeam\\Imagickimg\\' => 'Classes/'
-		),
-		'classmap' => array(
-			'Classes/Xclass',
-		),
-	),
-*/
