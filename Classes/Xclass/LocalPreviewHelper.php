@@ -27,20 +27,23 @@ namespace ImagickImgTeam\Imagickimg\Xclass;
  *  This copyright notice MUST APPEAR in all copies of the script!
  ***************************************************************/
 
-use \TYPO3\CMS\Core\Resource;
-use \TYPO3\CMS\Core\Utility;
+use TYPO3\CMS\Core\Resource\File;
+use TYPO3\CMS\Core\Resource\Processing\LocalImageProcessor;
+use TYPO3\CMS\Core\Resource\Processing\TaskInterface;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Core\Utility\MathUtility;
 
 class LocalPreviewHelper extends \TYPO3\CMS\Core\Resource\Processing\LocalPreviewHelper {
 
 	private $extKey = 'imagickimg';
 
 	/**
-	 * @param $processor Resource\Processing\LocalImageProcessor $processor
+	 * @param $processor LocalImageProcessor $processor
 	 */
-	public function __construct(Resource\Processing\LocalImageProcessor $processor) {
+	public function __construct(LocalImageProcessor $processor) {
 
 		if (TYPO3_DLOG)
-			Utility\GeneralUtility::devLog(__METHOD__, $this->extKey);
+			GeneralUtility::devLog(__METHOD__, $this->extKey);
 
 		parent::__construct($processor);
 	}
@@ -55,20 +58,20 @@ class LocalPreviewHelper extends \TYPO3\CMS\Core\Resource\Processing\LocalPrevie
 	 * copies the typo3temp/ file to the processing folder of the target storage
 	 * removes the typo3temp/ file
 	 *
-	 * @param $task Resource\Processing\TaskInterface $task
+	 * @param $task TaskInterface $task
 	 * @return array
 	 */
-	public function process(Resource\Processing\TaskInterface $task) {
+	public function process(TaskInterface $task) {
 	
 		if (TYPO3_DLOG)
-			Utility\GeneralUtility::devLog(__METHOD__, $this->extKey);
+			GeneralUtility::devLog(__METHOD__, $this->extKey);
 
 		$targetFile = $task->getTargetFile();
 
 			// Merge custom configuration with default configuration
 		$configuration = array_merge(array('width' => 64, 'height' => 64), $task->getConfiguration());
-		$configuration['width'] = Utility\MathUtility::forceIntegerInRange($configuration['width'], 1, 1000);
-		$configuration['height'] = Utility\MathUtility::forceIntegerInRange($configuration['height'], 1, 1000);
+		$configuration['width'] = MathUtility::forceIntegerInRange($configuration['width'], 1, 1000);
+		$configuration['height'] = MathUtility::forceIntegerInRange($configuration['height'], 1, 1000);
 
 		$originalFileName = $targetFile->getOriginalFile()->getForLocalProcessing(FALSE);
 
@@ -80,26 +83,27 @@ class LocalPreviewHelper extends \TYPO3\CMS\Core\Resource\Processing\LocalPrevie
 		}
 
 			// Create the thumb filename in typo3temp/preview_....jpg
-		$temporaryFileName = Utility\GeneralUtility::tempnam('preview_') . $targetFileExtension;
+		$temporaryFileName = GeneralUtility::tempnam('preview_') . $targetFileExtension;
 
 		if (TYPO3_DLOG)
-			Utility\GeneralUtility::devLog(__METHOD__, $this->extKey, 0, array($originalFileName, $temporaryFileName, $configuration));
+			GeneralUtility::devLog(__METHOD__, $this->extKey, 0, array($originalFileName, $temporaryFileName, $configuration));
 
-			// Check file extension
-		if ($targetFile->getOriginalFile()->getType() != Resource\File::FILETYPE_IMAGE &&
-			!Utility\GeneralUtility::inList($GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'], $targetFile->getOriginalFile()->getExtension())) {
+		$graphics = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Imaging\GraphicalFunctions::class);
+
+		// Check file extension
+		if ($targetFile->getOriginalFile()->getType() != File::FILETYPE_IMAGE &&
+			!GeneralUtility::inList($GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'], $targetFile->getOriginalFile()->getExtension())) {
 				// Create a default image
-			$this->processor->getTemporaryImageWithText($temporaryFileName, 'Not imagefile!', 'No ext!', $targetFile->getOriginalFile()->getName());
+			$graphics->getTemporaryImageWithText($temporaryFileName, 'Not imagefile!', 'No ext!', $targetFile->getOriginalFile()->getName());
 		} else {
 
 			if (TYPO3_DLOG)
-				Utility\GeneralUtility::devLog(__METHOD__ . ' Create the temporary file', $this->extKey);
+				GeneralUtility::devLog(__METHOD__ . ' Create the temporary file', $this->extKey);
 		
 				// Create the temporary file
 			if (TYPO3_DLOG)
-				Utility\GeneralUtility::devLog(__METHOD__ . ' executing GraphicalFunctions->imagickThumbnailImage', $this->extKey);
+				GeneralUtility::devLog(__METHOD__ . ' executing GraphicalFunctions->imagickThumbnailImage', $this->extKey);
 			
-			$graphics = Utility\GeneralUtility::makeInstance(\TYPO3\CMS\Core\Imaging\GraphicalFunctions::class);
 			$graphics->init();
 			$graphics->mayScaleUp = 0;
 			$graphics->imagickThumbnailImage(
@@ -111,9 +115,9 @@ class LocalPreviewHelper extends \TYPO3\CMS\Core\Resource\Processing\LocalPrevie
 			
 			if (!file_exists($temporaryFileName)) {
 				if (TYPO3_DLOG)
-					Utility\GeneralUtility::devLog(__METHOD__ . ' file: ' . $temporaryFileName . ' doesn\'t exists', $this->extKey);
+					GeneralUtility::devLog(__METHOD__ . ' file: ' . $temporaryFileName . ' doesn\'t exists', $this->extKey);
 					// Create a error gif
-				$this->processor->getTemporaryImageWithText($temporaryFileName, 'No thumb', 'generated!', $targetFile->getOriginalFile()->getName());
+				$graphics->getTemporaryImageWithText($temporaryFileName, 'No thumb', 'generated!', $targetFile->getOriginalFile()->getName());
 			}
 			
 		}
