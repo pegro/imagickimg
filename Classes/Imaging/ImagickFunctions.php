@@ -629,47 +629,7 @@ class ImagickFunctions
 		return $bRes;
 	}
 
-	/**
-	 * Compresses given image.
-	 *
-	 * @param	string	$imageFile	file name
-	 * @param	int		$imageQuality quality
-	 * @return	void
-	 */
-	private function imagickQuality($imageFile, $imageQuality) {
 
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($imageFile, $imageQuality));
-
-		if ($this->NO_IMAGICK) return;
-
-		if (!GeneralUtility::isAbsPath($imageFile)) {
-			$file = GeneralUtility::getFileAbsFileName($imageFile, FALSE);
-		} else {
-			$file = $imageFile;
-		}
-
-		try {
-			$im = new \Imagick($file);
-
-			$fileExt = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-			if (strtoupper($fileExt) == 'GIF') {
-				$im->optimizeImageLayers();
-			}
-			$this->imagickCompressObject($im, $imageQuality);
-
-			$im->writeImage($file);
-			$im->destroy();
-		}
-		catch(\ImagickException $e) {
-
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-		}
-	}
 
 
 	/**
@@ -827,80 +787,6 @@ class ImagickFunctions
 		$this->imagickCompressObject($imObject);
 	}
 
-	private function imagickSetColorspace($file, $colorSpace) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $colorSpace));
-
-		if ($this->NO_IMAGICK) return false;
-
-		if (!GeneralUtility::isAbsPath($file)) {
-			$fileResult = GeneralUtility::getFileAbsFileName($file, FALSE);
-		} else {
-			$fileResult = $file;
-		}
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($fileResult);
-
-			switch(strtoupper($colorSpace)) {
-				/*
-								case 'GRAY':
-
-									$newIm->setImageColorspace(\Imagick::COLORSPACE_GRAY); // IM >= 6.5.7
-
-									if ($this->debug) $this->logger->notice(__METHOD__  . ' Does this work ?!?!');
-									/ *
-									$newIm->setImageType(\Imagick::IMGTYPE_GRAYSCALE);
-									if (version_compare($this->im_version, '3.0.0', '>=')) {
-										$newIm->transformImageColorspace(\Imagick::COLORSPACE_GRAY);
-									}* /
-									break;
-				*/
-				case 'RGB':
-					if (version_compare($this->imagick_version, '3.0.0', '>=')) {
-						$newIm->transformImageColorspace(\Imagick::COLORSPACE_SRGB);
-					} else {
-						$newIm->setImageColorspace(\Imagick::COLORSPACE_SRGB);
-					}
-
-					/* http://www.imagemagick.org/script/color-management.php
-					$cs = $newIm->getColorspace();
-
-					if (($cs != \Imagick::COLORSPACE_RGB) || ($cs != \Imagick::COLORSPACE_SRGB)) {
-
-					}
-
-					if ((version_compare($this->im_version, '6.7', '>=') && version_compare($this->im_version, '6.7.5-5', '>=')) ||
-						(version_compare($this->im_version, '6.8', '>=') && version_compare($this->im_version, '6.8.0-3', '>=')))
-					{
-						if (version_compare($this->imagick_version, '3.0.0', '>=')) {
-							$newIm->transformImageColorspace(\Imagick::COLORSPACE_SRGB);
-						} else {
-							$newIm->setImageColorspace(\Imagick::COLORSPACE_SRGB);
-						}
-					} else {
-						$newIm->setImageColorspace(\Imagick::COLORSPACE_RGB);
-					}*/
-					break;
-			}
-
-			$newIm->writeImage($fileResult);
-			$newIm->destroy();
-
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
 
 	/**
 	 * Main function applying Imagick effects
@@ -917,310 +803,120 @@ class ImagickFunctions
 
 		$command = strtolower(trim($command));
 		$command = str_ireplace('-', '', $command);
-		$elems = GeneralUtility::trimExplode(' ', $command, true);
-		$nElems = count($elems);
+		$params = GeneralUtility::trimExplode(' ', $command, true);
 
-		if ($this->debug) $this->logger->debug('Elems', array($file, $elems));
-
-		// Here we're trying to identify ImageMagick parameters
-		// Image compression see tslib_cObj->image_compression
-		// Image effects see tslib_cObj->image_effects
-
-		if ($nElems == 1) {
-
-			switch($elems[0]) {
-				// effects
-				case 'normalize':
-					$this->imagickNormalize($file);
-					break;
-
-				case 'contrast':
-					$this->imagickContrast($file);
-					break;
-			}
-		}
-		elseif ($nElems == 2) {
-
-			switch($elems[0]) {
-				// effects
-				case 'rotate':
-					$this->imagickRotate($file, $elems[1]);
-					break;
-
-				case 'colorspace':
-					if ($elems[1] == 'gray') {
-						$this->imagickGray($file);
-					} else {
-						$this->imagickSetColorspace($file, $elems[1]);
-					}
-					break;
-
-				case 'sharpen':
-					$this->imagickSharpen($file, $elems[1]);
-					break;
-
-				case 'gamma':	// brighter, darker
-					$this->imagickGamma($file, $elems[1]);
-					break;
-
-				case '@sepia':
-					$this->imagickSepia($file, floatval($elems[1]));
-					break;
-
-				case '@corners':
-					$this->imagickRoundCorners($file, intval($elems[1]));
-					break;
-
-				case '@polaroid':
-					$this->imagickPolaroid($file, floatval($elems[1]));
-					break;
-
-				// compression
-				case 'colors':
-					$reduced = $this->IMreduceColors($file, intval($elems[1]));
-					if ($reduced) {
-						@copy($reduced, $file);
-						@unlink($reduced);
-					}
-					break;
-
-				case 'quality':
-					$this->imagickQuality($file, intval($elems[1]));
-					break;
-
-				case 'crop':
-					$this->imagickCrop($file, $elems[1]);
-					break;
-			}
-		}
-		elseif ($nElems == 3) {
-
-			// effects without parameters
-			switch($elems[0]) {
-
-				case 'normalize':
-					$this->imagickNormalize($file);
-					break;
-
-				case 'contrast':
-					$this->imagickContrast($file);
-					break;
-			}
-			// compression
-			switch($elems[1]) {
-
-				case 'colors':
-					$reduced = $this->IMreduceColors($file, intval($elems[2]));
-					if ($reduced) {
-						@copy($reduced, $file);
-						@unlink($reduced);
-					}
-					break;
-
-				case 'quality':
-					$this->imagickQuality($file, intval($elems[2]));
-					break;
-			}
-
-		}
-		elseif ($nElems == 4) {
-
-			// effect
-			switch($elems[0]) {
-
-				case 'rotate':
-					$this->imagickRotate($file, $elems[1]);
-					break;
-
-				case 'colorspace':
-					if ($elems[1] == 'gray')
-						$this->imagickGray($file);
-					else
-						$this->imagickSetColorspace($file, $elems[1]);
-					break;
-
-				case 'sharpen':
-					$this->imagickSharpen($file, $elems[1]);
-					break;
-				// brighter, darker
-				case 'gamma':
-					$this->imagickGamma($file, intval($elems[1]));
-					break;
-
-				case '@sepia':
-					$this->imagickSepia($file, floatval($elems[1]));
-					break;
-
-				case '@corners':
-					$this->imagickRoundCorners($file, intval($elems[1]));
-					break;
-
-				case '@polaroid':
-					$this->imagickPolaroid($file, floatval($elems[1]));
-					break;
-			}
-
-			// compression
-			switch($elems[2]) {
-
-				case 'colors':
-					$reduced = $this->IMreduceColors($file, intval($elems[3]));
-					if ($reduced) {
-						@copy($reduced, $file);
-						@unlink($reduced);
-					}
-					break;
-
-				case 'quality':
-					$this->imagickQuality($file, intval($elems[3]));
-					break;
-			}
-		}
-		elseif ($nElems == 6) {
-
-			// colorspace
-			switch($elems[0]) {
-				case 'colorspace':
-					if ($elems[1] == 'gray') {
-						$this->imagickGray($file);
-					} else {
-						$this->imagickSetColorspace($file, $elems[1]);
-					}
-					break;
-			}
-
-			// quality
-			switch($elems[2]) {
-				case 'quality':
-					$this->imagickQuality($file, intval($elems[3]));
-					break;
-			}
-
-			// effect
-			switch($elems[4]) {
-
-				case 'rotate':
-					$this->imagickRotate($file, $elems[5]);
-					break;
-
-				case 'colorspace':
-					if ($elems[1] == 'gray') {
-						$this->imagickGray($file);
-					} else {
-						$this->imagickSetColorspace($file, $elems[1]);
-					}
-					break;
-
-				case 'sharpen':
-					$this->imagickSharpen($file, $elems[5]);
-					break;
-				// brighter, darker
-				case 'gamma':
-					$this->imagickGamma($file, intval($elems[5]));
-					break;
-
-				case '@sepia':
-					$this->imagickSepia($file, floatval($elems[5]));
-					break;
-
-				case '@corners':
-					$this->imagickRoundCorners($file, intval($elems[5]));
-					break;
-
-				case '@polaroid':
-					$this->imagickPolaroid($file, floatval($elems[5]));
-					break;
-			}
-		}
-		elseif ($nElems == 8) {
-
-			// colorspace
-			switch($elems[0]) {
-				case 'colorspace':
-					if ($elems[1] == 'gray') {
-						$this->imagickGray($file);
-					} else {
-						$this->imagickSetColorspace($file, $elems[1]);
-					}
-					break;
-			}
-
-			// quality
-			switch($elems[2]) {
-				case 'quality':
-					$this->imagickQuality($file, intval($elems[3]));
-					break;
-			}
-
-			// effect
-			switch($elems[4]) {
-
-				case 'rotate':
-					$this->imagickRotate($file, $elems[5]);
-					break;
-
-				case 'colorspace':
-					if ($elems[1] == 'gray') {
-						$this->imagickGray($file);
-					} else {
-						$this->imagickSetColorspace($file, $elems[1]);
-					}
-					break;
-
-				case 'sharpen':
-					$this->imagickSharpen($file, $elems[5]);
-					break;
-				// brighter, darker
-				case 'gamma':
-					$this->imagickGamma($file, intval($elems[5]));
-					break;
-
-				case '@sepia':
-					$this->imagickSepia($file, floatval($elems[5]));
-					break;
-
-				case '@corners':
-					$this->imagickRoundCorners($file, intval($elems[5]));
-					break;
-
-				case '@polaroid':
-					$this->imagickPolaroid($file, floatval($elems[5]));
-					break;
-			}
-
-			// effect
-			switch($elems[6]) {
-				case 'crop':
-					$this->imagickCrop($file, $elems[7]);
-					break;
-			}
-		}
-		else {
-			$this->logger->error(__METHOD__ . ' > Not expected amount of parameters', array($elems));
-		}
-
-		GeneralUtility::fixPermissions($file);
-	}
-
-
-	private function imagickGamma($file, $value) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return false;
+		if ($this->debug) $this->logger->debug('Elems', array($file, $params));
 
 		try {
+
 			$newIm = new \Imagick();
 			$newIm->readImage($file);
+			$fileExt = strtolower(pathinfo($file, PATHINFO_EXTENSION));
 
-			$newIm->gammaImage($value);
+			// iterate over paramters
+			// case 1: ["geometry","800x600!","crop","544x352+216+121"]
+			// case 2: ["geometry","85x64!","colorspace","rgb","quality","80","sharpen","1x2","crop","64x64+10+0!"]
+			$after_effects = [];
+			for($i = 0; $i < count($params); $i++) {
+				switch($params[$i]) {
+					case 'rotate':
+						$newIm->rotateImage(new \ImagickPixel(), $params[++$i]);
+						break;
 
+					case 'geometry':
+						$scale = self::parseScale($params[++$i]);
+
+						$newIm->resizeImage($scale['w'], $scale['h'], $GLOBALS['TYPO3_CONF_VARS']['GFX']['windowing_filter'], 1);
+						break;
+
+					case 'crop':
+						$scale = self::parseScale($params[++$i]);
+
+						$newIm->cropImage($scale['w'], $scale['h'], $scale['x'], $scale['y']);
+						break;
+
+					case 'colorspace':
+						$colorspace = strtolower($params[++$i]);
+						if($colorspace == 'gray') {
+							$newIm->setImageType(\Imagick::IMGTYPE_GRAYSCALE);
+						} elseif($colorspace == 'rgb') {
+							if (version_compare($this->imagick_version, '3.0.0', '>=')) {
+								$newIm->transformImageColorspace(\Imagick::COLORSPACE_SRGB);
+							} else {
+								$newIm->setImageColorspace(\Imagick::COLORSPACE_SRGB);
+							}
+						}
+						break;
+
+					case 'quality':
+						if (strtolower($fileExt) == 'gif') {
+							$newIm->optimizeImageLayers();
+						}
+						$this->imagickCompressObject($newIm, intval($params[++$i]));
+						break;
+
+					case 'normalize':
+						$newIm->normalizeImage();
+						break;
+
+					case 'contrast':
+						$newIm->contrastImage(intval($params[++$i]));
+						break;
+
+					case 'sharpen':
+						$scale = self::parseScale($params[++$i]);
+
+						$newIm->sharpenImage($scale['w'], $scale['h']);
+						break;
+
+					case 'gamma':
+						$newIm->gammaImage(intval($params[++$i]));
+						break;
+
+					case 'colors':
+						$after_effects[] = ['reduce_colors' => intval($params[++$i])];
+						break;
+
+					case '@sepia':
+						$newIm->sepiaToneImage(floatval($params[++$i])); // >= Imagick 2.0.0
+						break;
+
+					case '@corners':
+						$after_effects[] = ['round_corners' => intval($params[++$i])];
+						break;
+
+					case '@polaroid':
+						$after_effects[] = ['polaroid' => floatval($params[++$i])];
+						break;
+
+					default:
+						if ($this->debug) $this->logger->debug('Unhandled parameter: ', array($params[$i], $params[++$i]));
+						break;
+				}
+			}
+			// write image
 			$newIm->writeImage($file);
 			$newIm->destroy();
 
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
+			foreach ($after_effects as $name => $parameter) {
+				switch($name) {
+					case 'reduce_colors':
+						$reduced = $this->IMreduceColors($file, $parameter);
+						if ($reduced) {
+							@copy($reduced, $file);
+							@unlink($reduced);
+						}
+						break;
+					case 'round_corners':
+						$this->imagickRoundCorners($file, $parameter);
+						break;
+					case 'polaroid':
+						$this->imagickPolaroid($file, $parameter);
+						break;
+				}
+			}
+
+		} catch(\ImagickException $e) {
 
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1228,541 +924,6 @@ class ImagickFunctions
 			} else {
 				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 			}
-			return FALSE;
-		}
-	}
-
-	/* // unused
-		private function imagickBlur($file, $value) {
-
-			if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
-
-			if ($this->NO_IMAGICK) return false;
-
-			try {
-				$newIm = new \Imagick();
-				$newIm->readImage($file);
-
-				$newIm->blurImage($value);
-
-				$newIm->writeImage($file);
-				$newIm->destroy();
-
-				return TRUE;
-			}
-			catch(\ImagickException $e) {
-
-				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-				if ($this->debug) {
-					$this->logger->error($sMsg);
-				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-				}
-				return FALSE;
-			}
-		}
-	*/
-
-	private function imagickSharpen($file, $value) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return false;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-
-			$arr = GeneralUtility::trimExplode('x', $value);
-			$radius = $arr[0];
-			$sigma = $arr[1];
-
-			$newIm->sharpenImage($radius, $sigma);
-
-			$newIm->writeImage($file);
-			$newIm->destroy();
-
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickRotate($file, $value) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return false;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-
-			$newIm->rotateImage(new \ImagickPixel(), $value);
-
-			$newIm->writeImage($file);
-			$newIm->destroy();
-
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	/* // unused
-		private function imagickSolarize($file, $value) {
-
-			if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
-
-			if ($this->NO_IMAGICK) return false;
-
-			try {
-				$newIm = new \Imagick();
-				$newIm->readImage($file);
-
-				$newIm->solarizeImage($value);
-
-				$newIm->writeImage($file);
-				$newIm->destroy();
-
-				return TRUE;
-			}
-			catch(\ImagickException $e) {
-
-				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-				if ($this->debug) {
-					$this->logger->error($sMsg);
-				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-				}
-				return FALSE;
-			}
-		}
-
-		private function imagickSwirl($file, $value) {
-
-			if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
-
-			if ($this->NO_IMAGICK) return false;
-
-			try {
-				$newIm = new \Imagick();
-				$newIm->readImage($file);
-
-				$newIm->swirlImage($value);
-
-				$newIm->writeImage($file);
-				$newIm->destroy();
-
-				return TRUE;
-			}
-			catch(\ImagickException $e) {
-
-				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-				if ($this->debug) {
-					$this->logger->error($sMsg);
-				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-				}
-				return FALSE;
-			}
-		}
-
-		private function imagickWawe($file, $value1, $value2) {
-
-			if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value1, $value2));
-
-			if ($this->NO_IMAGICK) return false;
-
-			try {
-				$newIm = new \Imagick();
-				$newIm->readImage($file);
-
-				$newIm->waveImage($value1, $value2);
-
-				$newIm->writeImage($file);
-				$newIm->destroy();
-
-				return TRUE;
-			}
-			catch(\ImagickException $e) {
-
-				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-				if ($this->debug) {
-					$this->logger->error($sMsg);
-				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-				}
-				return FALSE;
-			}
-		}
-
-		private function imagickCharcoal($file, $value) {
-
-			if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
-
-			if ($this->NO_IMAGICK) return false;
-
-			try {
-				$newIm = new \Imagick();
-				$newIm->readImage($file);
-
-				$newIm->charcoalImage($value);
-
-				$newIm->writeImage($file);
-				$newIm->destroy();
-
-				return TRUE;
-			}
-			catch(\ImagickException $e) {
-
-				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-				if ($this->debug) {
-					$this->logger->error($sMsg);
-				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-				}
-				return FALSE;
-			}
-		}
-	*/
-
-	private function imagickGray($file) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file));
-
-		if ($this->NO_IMAGICK) return false;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-
-			$newIm->setImageType(\Imagick::IMGTYPE_GRAYSCALE);
-
-			$newIm->writeImage($file);
-			$newIm->destroy();
-
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	/* // unused
-		private function imagickEdge($file, $value) {
-
-			if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
-
-			if ($this->NO_IMAGICK) return false;
-
-			try {
-				$newIm = new \Imagick();
-				$newIm->readImage($file);
-
-				$newIm->edgeImage($value);
-
-				$newIm->writeImage($file);
-				$newIm->destroy();
-
-				return TRUE;
-			}
-			catch(\ImagickException $e) {
-
-				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-				if ($this->debug) {
-					$this->logger->error($sMsg);
-				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-				}
-				return FALSE;
-			}
-		}
-
-		private function imagickEmboss($file) {
-
-			if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file));
-
-			if ($this->NO_IMAGICK) return false;
-
-			try {
-				$newIm = new \Imagick();
-				$newIm->readImage($file);
-
-				$newIm->embossImage(0);
-
-				$newIm->writeImage($file);
-				$newIm->destroy();
-
-				return TRUE;
-			}
-			catch(\ImagickException $e) {
-
-				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-				if ($this->debug) {
-					$this->logger->error($sMsg);
-				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-				}
-				return FALSE;
-			}
-		}
-
-		private function imagickFlip($file) {
-
-			if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file));
-
-			if ($this->NO_IMAGICK) return false;
-
-			try {
-				$newIm = new \Imagick();
-				$newIm->readImage($file);
-
-				$newIm->flipImage();
-
-				$newIm->writeImage($file);
-				$newIm->destroy();
-
-				return TRUE;
-			}
-			catch(\ImagickException $e) {
-
-				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-				if ($this->debug) {
-					$this->logger->error($sMsg);
-				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-				}
-				return FALSE;
-			}
-		}
-
-		private function imagickFlop($file) {
-
-			if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file));
-
-			if ($this->NO_IMAGICK) return false;
-
-			try {
-				$newIm = new \Imagick();
-				$newIm->readImage($file);
-
-				$newIm->flopImage();
-
-				$newIm->writeImage($file);
-				$newIm->destroy();
-
-				return TRUE;
-			}
-			catch(\ImagickException $e) {
-
-				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-				if ($this->debug) {
-					$this->logger->error($sMsg);
-				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-				}
-				return FALSE;
-			}
-		}
-
-		private function imagickColors($file, $value) {
-
-			if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
-
-			if ($this->NO_IMAGICK) return false;
-
-			try {
-				$newIm = new \Imagick();
-				$newIm->readImage($file);
-
-				$newIm->quantizeImage($value, $newIm->getImageColorspace(), 0, false, false);
-					// Only save one pixel of each color
-				$newIm->uniqueImageColors();
-
-				$newIm->writeImage($file);
-				$newIm->destroy();
-
-				return TRUE;
-			}
-			catch(\ImagickException $e) {
-
-				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-				if ($this->debug) {
-					$this->logger->error($sMsg);
-				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-				}
-				return FALSE;
-			}
-		}
-
-		private function imagickShear($file, $value) {
-
-			if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
-
-			if ($this->NO_IMAGICK) return false;
-
-			try {
-				$newIm = new \Imagick();
-				$newIm->readImage($file);
-
-				$newIm->shearImage($newIm->getImageBackgroundColor(), $value, $value);
-
-				$newIm->writeImage($file);
-				$newIm->destroy();
-
-				return TRUE;
-			}
-			catch(\ImagickException $e) {
-
-				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-				if ($this->debug) {
-					$this->logger->error($sMsg);
-				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-				}
-				return FALSE;
-			}
-		}
-
-		private function imagickInvert($file) {
-
-			if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file));
-
-			if ($this->NO_IMAGICK) return false;
-
-			try {
-				$newIm = new \Imagick();
-				$newIm->readImage($file);
-
-				$newIm->negateImage(0);
-
-				$newIm->writeImage($file);
-				$newIm->destroy();
-
-				return TRUE;
-			}
-			catch(\ImagickException $e) {
-
-				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-				if ($this->debug) {
-					$this->logger->error($sMsg);
-				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-				}
-				return FALSE;
-			}
-		}
-	*/
-
-	private function imagickNormalize($file) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file));
-
-		if ($this->NO_IMAGICK) return false;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-
-			$newIm->normalizeImage();
-
-			$newIm->writeImage($file);
-			$newIm->destroy();
-
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickContrast($file, $value = 1) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return false;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-
-			$newIm->contrastImage($value);
-
-			$newIm->writeImage($file);
-			$newIm->destroy();
-
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickSepia($file, $value) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return false;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-
-			$newIm->sepiaToneImage($value); // >= Imagick 2.0.0
-
-			$newIm->writeImage($file);
-			$newIm->destroy();
-
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
 		}
 	}
 
@@ -1871,41 +1032,17 @@ class ImagickFunctions
 		}
 	}
 
-	private function imagickCrop($file, $value) {
+	private static function parseScale($value)
+	{
+		$strVal = str_replace('!', '', $value);
+		$arr = GeneralUtility::trimExplode('+', $strVal);
+		$dims = $arr[0];
+		$res['x'] = $arr[1];
+		$res['y'] = $arr[2];
+		$arr = GeneralUtility::trimExplode('x', $dims);
+		$res['w'] = $arr[0];
+		$res['h'] = $arr[1];
 
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return false;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-
-			$strVal = str_replace('!', '', $value);
-			$arr = GeneralUtility::trimExplode('+', $strVal);
-			$dims = $arr[0];
-			$x = $arr[1];
-			$y = $arr[2];
-			$arr = GeneralUtility::trimExplode('x', $dims);
-			$w = $arr[0];
-			$h = $arr[1];
-
-			$newIm->cropImage($w, $h, $x, $y);
-
-			$newIm->writeImage($file);
-			$newIm->destroy();
-
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
+		return $res;
 	}
 }

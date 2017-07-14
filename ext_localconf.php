@@ -108,7 +108,7 @@ if (extension_loaded('imagick')) {
 				// add a FileWriter
 				'TYPO3\\CMS\\Core\\Log\\Writer\\FileWriter' => array(
 					// configuration for the writer
-					'logFile' => 'typo3temp/logs/imagickimg.log'
+					'logFile' => 'typo3temp/var/logs/imagickimg.log'
 				)
 			)
 		);
