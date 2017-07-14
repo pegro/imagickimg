@@ -993,6 +993,10 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 				case 'quality':
 					$this->imagickQuality($file, intval($elems[1]));
 					break;
+
+				case 'crop':
+					$this->imagickCrop($file, $elems[1]);
+					break;
 			}
 		}
 		elseif ($nElems == 3) {
@@ -1878,13 +1882,13 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			$strVal = str_replace('!', '', $value);
 			$arr = GeneralUtility::trimExplode('+', $strVal);
 			$dims = $arr[0];
-			$W = $arr[1];
-			$h = $arr[2];
+			$x = $arr[1];
+			$y = $arr[2];
 			$arr = GeneralUtility::trimExplode('x', $dims);
-			$x = $arr[0];
-			$y = $arr[1];
+			$w = $arr[0];
+			$h = $arr[1];
 
-			$newIm->cropImage($w, $h, $w, $h);
+			$newIm->cropImage($w, $h, $x, $y);
 
 			$newIm->writeImage($file);
 			$newIm->destroy();
