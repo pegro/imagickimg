@@ -61,7 +61,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 		$this->debug = $GLOBALS['TYPO3_CONF_VARS']['GFX']['imagick_debug'];
 
 		if ($this->debug) {
-			$this->logger = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\CMS\Core\Log\LogManager')->getLogger(__CLASS__);
+			$this->logger = GeneralUtility::makeInstance('TYPO3\CMS\Core\Log\LogManager')->getLogger(__CLASS__);
 			$this->logger->debug(__METHOD__ . ' OK');
 		}
 
@@ -155,7 +155,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 				$im_ver = $a;
 			}
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -190,7 +190,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 
 			$newIm->destroy();
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -412,7 +412,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			$ret = '1';
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -459,7 +459,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 
 			$newIm->destroy();
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -557,7 +557,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			$this->imagickOptimize($fileOutput);			
 			GeneralUtility::fixPermissions($output);
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -602,7 +602,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			$im->writeImage($file);
 			$im->destroy();
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -741,7 +741,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			$im->writeImage($file);
 			$im->destroy();
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -830,7 +830,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -900,7 +900,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 				
 				return $result;	
 			}
-			catch(ImagickException $e) {
+			catch(\ImagickException $e) {
 				
 				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 				if ($this->debug) {
@@ -1234,7 +1234,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1263,7 +1263,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1296,7 +1296,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1325,7 +1325,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1354,7 +1354,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1381,7 +1381,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1410,7 +1410,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1439,7 +1439,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1468,7 +1468,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1497,7 +1497,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1526,7 +1526,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1555,7 +1555,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1584,7 +1584,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1615,7 +1615,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1644,7 +1644,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1673,7 +1673,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1702,7 +1702,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1731,7 +1731,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1760,7 +1760,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1812,7 +1812,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1865,7 +1865,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1903,7 +1903,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1972,7 +1972,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			
 			return $res;				
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -2082,7 +2082,7 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 
 			$bRes = TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {

@@ -117,8 +117,8 @@ class ElementInformationController extends \TYPO3\CMS\Backend\Controller\Content
 				continue;
 			}
 			$uid = $this->row['uid'];
-			$itemValue = \BackendUtility::getProcessedValue($this->table, $name, $this->row[$name], 0, 0, FALSE, $uid);
-			$itemLabel = $GLOBALS['LANG']->sL(\BackendUtility::getItemLabel($this->table, $name), 1);
+			$itemValue = BackendUtility::getProcessedValue($this->table, $name, $this->row[$name], 0, 0, FALSE, $uid);
+			$itemLabel = $GLOBALS['LANG']->sL(BackendUtility::getItemLabel($this->table, $name), 1);
 			$tableRows[] = '
 				<tr>
 					<td class="t3-col-header">' . $itemLabel . '</td>

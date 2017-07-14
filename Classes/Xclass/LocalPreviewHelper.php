@@ -27,16 +27,17 @@ namespace ImagickImgTeam\Imagickimg\Xclass;
  *  This copyright notice MUST APPEAR in all copies of the script!
  ***************************************************************/
 
-use \TYPO3\CMS\Core\Resource, \TYPO3\CMS\Core\Utility;
+use \TYPO3\CMS\Core\Resource;
+use \TYPO3\CMS\Core\Utility;
 
 class LocalPreviewHelper extends \TYPO3\CMS\Core\Resource\Processing\LocalPreviewHelper {
 
 	private $extKey = 'imagickimg';
 
 	/**
-	 * @param LocalImageProcessor $processor
+	 * @param $processor Resource\Processing\LocalImageProcessor $processor
 	 */
-	public function __construct(\TYPO3\CMS\Core\Resource\Processing\LocalImageProcessor $processor) {
+	public function __construct(Resource\Processing\LocalImageProcessor $processor) {
 
 		if (TYPO3_DLOG)
 			Utility\GeneralUtility::devLog(__METHOD__, $this->extKey);
@@ -52,10 +53,10 @@ class LocalPreviewHelper extends \TYPO3\CMS\Core\Resource\Processing\LocalPrevie
 	 * copies the typo3temp/ file to the processing folder of the target storage
 	 * removes the typo3temp/ file
 	 *
-	 * @param TaskInterface $task
+	 * @param $task Resource\Processing\TaskInterface $task
 	 * @return array
 	 */
-	public function process(\TYPO3\CMS\Core\Resource\Processing\TaskInterface $task) {
+	public function process(Resource\Processing\TaskInterface $task) {
 	
 		if (TYPO3_DLOG)
 			Utility\GeneralUtility::devLog(__METHOD__, $this->extKey);

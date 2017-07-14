@@ -61,7 +61,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 		$this->debug = $GLOBALS['TYPO3_CONF_VARS']['GFX']['imagick_debug'];
 
 		if ($this->debug) {
-			$this->logger = \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance('TYPO3\CMS\Core\Log\LogManager')->getLogger(__CLASS__);
+			$this->logger = GeneralUtility::makeInstance('TYPO3\CMS\Core\Log\LogManager')->getLogger(__CLASS__);
 			$this->logger->debug(__METHOD__ . ' OK');
 		}
 
@@ -155,7 +155,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 				$im_ver = $a;
 			}
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -190,7 +190,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 			$newIm->destroy();
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -329,7 +329,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 						$this->imagickOptimize($fullOutput);
 						GeneralUtility::fixPermissions($fullOutput);
 					}
-					catch(ImagickException $e) {
+					catch(\ImagickException $e) {
 						
 						$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 						if ($this->debug) {
@@ -409,7 +409,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			$ret = '1';
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -456,7 +456,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 			$newIm->destroy();
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -554,7 +554,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			$this->imagickOptimize($fileOutput);
 			GeneralUtility::fixPermissions($output);
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -599,7 +599,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			$im->writeImage($file);
 			$im->destroy();
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -738,7 +738,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			$im->writeImage($file);
 			$im->destroy();
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -827,7 +827,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -897,7 +897,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 				
 				return $result;	
 			}
-			catch(ImagickException $e) {
+			catch(\ImagickException $e) {
 				
 				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 				if ($this->debug) {
@@ -1224,7 +1224,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1253,7 +1253,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1286,7 +1286,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1315,7 +1315,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1344,7 +1344,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1371,7 +1371,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1400,7 +1400,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1429,7 +1429,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1458,7 +1458,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1487,7 +1487,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1516,7 +1516,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1545,7 +1545,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1574,7 +1574,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1605,7 +1605,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1634,7 +1634,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1663,7 +1663,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1692,7 +1692,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1721,7 +1721,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1750,7 +1750,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1802,7 +1802,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1855,7 +1855,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1893,7 +1893,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 			return TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -1962,7 +1962,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			
 			return $res;				
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {
@@ -2072,7 +2072,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 			$bRes = TRUE;
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
 			if ($this->debug) {

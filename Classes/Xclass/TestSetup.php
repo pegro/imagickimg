@@ -28,6 +28,7 @@ namespace ImagickImgTeam\Imagickimg\Xclass;
  ***************************************************************/
 
 use TYPO3\CMS\Core\Imaging\GraphicalFunctions;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class TestSetup extends \TYPO3\CMS\Install\Controller\Action\Tool\TestSetup {
 	
@@ -56,7 +57,7 @@ class TestSetup extends \TYPO3\CMS\Install\Controller\Action\Tool\TestSetup {
 			list($version) = explode(' ', trim($version));
 			$version = trim($version);
 		}
-		catch(ImagickException $e) {
+		catch(\ImagickException $e) {
 			
 			GeneralUtility::sysLog(
 				__METHOD__ . ' >> ' . $e->getMessage(),
