@@ -22,28 +22,21 @@ if (extension_loaded('imagick')) {
 	$GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects']['TYPO3\\CMS\\Frontend\\Imaging\\GifBuilder'] = array(
 		'className' => 'ImagickImgTeam\\Imagickimg\\Xclass\\GifBuilder'
 	);
-	$GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects']['TYPO3\\CMS\\Backend\\View\\ThumbnailView'] = array(
-		'className' => 'ImagickImgTeam\\Imagickimg\\Xclass\\ThumbnailView'
+	$GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects']['TYPO3\\CMS\\Core\\Resource\\OnlineMedia\\Processing\\PreviewProcessing'] = array(
+		'className' => 'ImagickImgTeam\\Imagickimg\\Xclass\\PreviewProcessing'
 	);
 	$GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects']['TYPO3\\CMS\\Core\\Resource\\Processing\\LocalPreviewHelper'] = array(
 		'className' => 'ImagickImgTeam\\Imagickimg\\Xclass\\LocalPreviewHelper'
 	);
-	$GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects']['TYPO3\\CMS\\Frontend\\ContentObject\\ContentObjectRenderer'] = array(
-		'className' => 'ImagickImgTeam\\Imagickimg\\Xclass\\ContentObjectRenderer'
-	);
-	$GLOBALS['TYPO3_CONF_VARS']['SYS']['Objects']['TYPO3\\CMS\\Backend\\Controller\\ContentElement\\ElementInformationController'] = array(
-		'className' => 'ImagickImgTeam\\Imagickimg\\Xclass\\ElementInformationController'
-	);
 
 	// Imagick loaded, so turn on image processing
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['image_processing'] = 1;
-	$GLOBALS['TYPO3_CONF_VARS']['GFX']['im'] = 0;
-	$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_path'] = ''; // Not necesary while using Imagick
-	$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_path_lzw'] = ''; // Not necesary while using Imagick
+	$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled'] = 1;
+	$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path'] = ''; // Not necesary while using Imagick
+	$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path_lzw'] = ''; // Not necesary while using Imagick
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_combine_filename'] = ''; // Not necesary while using Imagick
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['gdlib'] = 1;
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['thumbnails'] = 1;
-	$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_v5effects'] = 1;
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_effects'] = 1;
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['gif_compress'] = 0; // Don't use TYPO3 work around. Imagick will compress the images.
 
