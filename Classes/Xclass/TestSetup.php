@@ -27,7 +27,6 @@ namespace ImagickImgTeam\Imagickimg\Xclass;
  *  This copyright notice MUST APPEAR in all copies of the script!
  ***************************************************************/
 
-use TYPO3\CMS\Core\Imaging\GraphicalFunctions;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 
 class TestSetup extends \TYPO3\CMS\Install\Controller\Action\Tool\TestSetup {
@@ -41,17 +40,11 @@ class TestSetup extends \TYPO3\CMS\Install\Controller\Action\Tool\TestSetup {
 		$version = 'Unknown';
 
 		try {
-			$imageProcessor = $this->objectManager->get(GraphicalFunctions::class);
-			$imageProcessor->init();
-			$imageProcessor->tempPath = PATH_site . 'typo3temp/';
-			$imageProcessor->dontCheckForExistingTempFile = 1;
-			$imageProcessor->filenamePrefix = 'installTool-';
-			$imageProcessor->dontCompress = 1;
-			$imageProcessor->alternativeOutputKey = 'typo3InstallTest';
-			$imageProcessor->noFramePrepended = $GLOBALS['TYPO3_CONF_VARS']['GFX']['im_noFramePrepended']; 
-			
+			/** @var \ImagickImgTeam\Imagickimg\Xclass\GraphicalFunctions $imageProcessor */
+			$imageProcessor = $this->initializeImageProcessor();
+
 			$verArr = $imageProcessor->getIMversion(FALSE);
-			$version = $verArr['versionString'];
+			$string = $verArr['versionString'];
 
 			list(, $version) = explode('Magick', $string);
 			list($version) = explode(' ', trim($version));
