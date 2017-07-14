@@ -5,6 +5,7 @@ namespace ImagickImgTeam\Imagickimg\Xclass;
  *  Copyright notice
  *
  *  (c) 2016 Tomasz Krawczyk <tomasz@typo3.pl>
+ *  (c) 2017 Peter Große <pegro@friiks.de>
  *  All rights reserved
  *
  *  This script is part of the TYPO3 project. The TYPO3 project is
@@ -33,7 +34,6 @@ use TYPO3\CMS\Core\Utility\MathUtility;
 /**
  * Contains GraphicalFunctions Xclass object.
  *
- * @author Tomasz Krawczyk <tomasz@typo3.pl>
  */
 class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
@@ -43,7 +43,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	private $im_version = 'Unknown';
 	private $quantumRange;
 	private $gfxConf;
-	private $transparentFormats = array('gif', 'png', 'bmp', 'tiff');
+	//private $transparentFormats = array('gif', 'png', 'bmp', 'tiff');
 	private $debug = FALSE;
 	/** @var $logger \TYPO3\CMS\Core\Log\Logger */
 	private $logger;
@@ -52,7 +52,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	 * Init function. Must always call this when using the class.
 	 * This function will read the configuration information from $GLOBALS['TYPO3_CONF_VARS']['GFX'] can set some values in internal variables.
 	 *
-	 * Additionaly function checks if PHP extension Imagick is loaded.
+	 * Additionally function checks if PHP extension Imagick is loaded.
 	 *
 	 * @return	void
 	 */
@@ -114,8 +114,8 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
    /**
      * Gets ImageMagick & Imagick versions.
      *
-     * @param	boolean		If true short string version string will be returned (f.i. im5), else full version array.
-     * @return	string/array	Version info
+     * @param   boolean $returnString	if true short string version string will be returned (f.i. im5), else full version array.
+     * @return	string|array	Version info
      *
      */
 	public function getIMversion($returnString = TRUE) {
@@ -245,11 +245,13 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 				}
 			}
 			if (GeneralUtility::inList($this->imageFileExt, $newExt)) {
+				/* // unused
 				if (strstr($w . $h, 'm')) {
 					$max = 1;
 				} else {
 					$max = 0;
 				}
+				*/
 				$data = $this->getImageScale($info, $w, $h, $options);
 				$w = $data['origW'];
 				$h = $data['origH'];
@@ -353,6 +355,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 				}
 			}
 		}
+		return null;
 	}
 
 	/**
@@ -426,7 +429,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	 * Returns an array where [0]/[1] is w/h, [2] is extension and [3] is the filename.
 	 * Using ImageMagick
 	 *
-	 * @param	string		The relative (to PATH_site) image filepath
+	 * @param	string	$imagefile	The relative (to PATH_site) image filepath
 	 * @return	array
 	 */	 
 	public function imageMagickIdentify($imagefile) {
@@ -666,8 +669,8 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
     /**
      * Compresses given image.
      *
-	 * @param	string		file name
-	 * @param	int		quality
+	 * @param	string	$imageFile	file name
+	 * @param	int		$imageQuality quality
 	 * @return	void
      */
 	private function imagickQuality($imageFile, $imageQuality) {
@@ -685,7 +688,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 		try {
 			$im = new \Imagick($file);
 
-			$fileExt = strtolower(pathinfo($fileResult, PATHINFO_EXTENSION));
+			$fileExt = strtolower(pathinfo($file, PATHINFO_EXTENSION));
 			if (strtoupper($fileExt) == 'GIF') {
 				$im->optimizeImageLayers();
 			}
@@ -709,7 +712,8 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
     /**
      * Compresses given image.
      *
-	 * @param	Imagick		Imagick object
+	 * @param   \Imagick		$imageObj Imagick object
+     * @param   int $imageQuality image quality
 	 * @return	void
      */
 	private function imagickCompressObject(&$imageObj, $imageQuality = 0) {
@@ -765,7 +769,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
     /**
      * Removes profiles and comments from the image.
      *
-	 * @param	Imagick		Imagick object
+	 * @param	\Imagick	$imageObj	Imagick object
 	 * @return	void
      */
 	private function imagickRemoveProfile(&$imageObj) {
@@ -790,7 +794,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
     /**
      * Optimizes image resolution.
      *
-	 * @param	Imagick		Imagick object
+	 * @param	\Imagick	$imageObj	Imagick object
 	 * @return	void
      */
 	private function imagickOptimizeResolution(&$imageObj) {
@@ -809,7 +813,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
     /**
      * Executes all optimization methods on the image. Execute it just before storing image to disk.
      * 
-     * @param Imagick		Imagick object
+     * @param string	$imageFile	image file
 	 * @return	void
      */
 	private function imagickOptimize($imageFile) {
@@ -844,7 +848,9 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 		}
 	}
 
-
+	/**
+	 * @param \Imagick $imObject
+	 */
 	private function imagickOptimizeObject(&$imObject) {
 		
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK');
@@ -863,7 +869,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $colorSpace));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		if (!GeneralUtility::isAbsPath($file)) {
 			$fileResult = GeneralUtility::getFileAbsFileName($file, FALSE);
@@ -937,8 +943,8 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	/**
 	 * Reduce colors in image using IM and create a palette based image if possible (<=256 colors)
 	 *
-	 * @param	string		Image file to reduce
-	 * @param	integer		Number of colors to reduce the image to.
+	 * @param	string		$file Image file to reduce
+	 * @param	integer		$cols Number of colors to reduce the image to.
 	 * @return	string		Reduced file
 	 */
 	public function IMreduceColors($file, $cols) {
@@ -1008,8 +1014,8 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
     /**
      * Main function applying Imagick effects
      *
-	 * @param	pointer		The image pointer (reference)
-	 * @param	string		The ImageMagick parameters. Like effects, scaling etc.
+	 * @param	string		$file image file
+	 * @param	string		$command The ImageMagick parameters. Like effects, scaling etc.
 	 * @return	void
      */
 	private function applyImagickEffect($file, $command) {
@@ -1310,7 +1316,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1334,12 +1340,13 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			return FALSE;
 		}		
 	}
-	
+
+/* // unused
 	private function imagickBlur($file, $value) {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1363,12 +1370,13 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			return FALSE;
 		}		
 	}
-	
+*/
+
 	private function imagickSharpen($file, $value) {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1401,7 +1409,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1426,11 +1434,12 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 		}
 	}
 
+/* // unused
 	private function imagickSolarize($file, $value) {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 		
 		try {
 			$newIm = new \Imagick();
@@ -1459,6 +1468,8 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
+		if ($this->NO_IMAGICK) return false;
+
 		try {
 			$newIm = new \Imagick();
 			$newIm->readImage($file);
@@ -1486,7 +1497,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value1, $value2));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1515,7 +1526,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1539,12 +1550,13 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			return FALSE;
 		}
 	}
+*/
 
 	private function imagickGray($file) {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1569,11 +1581,12 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 		}
 	}
 
+/* // unused
 	private function imagickEdge($file, $value) {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1602,7 +1615,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1631,7 +1644,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 		
 		try {
 			$newIm = new \Imagick();
@@ -1660,7 +1673,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1689,7 +1702,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1720,7 +1733,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1749,7 +1762,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1773,12 +1786,13 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			return FALSE;
 		}
 	}
+*/
 
 	private function imagickNormalize($file) {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1807,7 +1821,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1836,7 +1850,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1865,7 +1879,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1917,7 +1931,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -1970,7 +1984,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		try {
 			$newIm = new \Imagick();
@@ -2007,14 +2021,14 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	/**
      * Returns an array with detailed image info.
      *
-     * @param 	string	File path
+     * @param 	string	$imagefile File path
 	 * @return	array	Image information
      */
 	public function imagickGetDetailedImageInfo($imagefile) {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($imagefile));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return [];
 
 		if (!GeneralUtility::isAbsPath($imagefile)) {
 			$file = GeneralUtility::getFileAbsFileName($imagefile, FALSE);
@@ -2069,7 +2083,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			} else {
 				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 			}
-			return '';
+			return [];
 		}
 	}
 
@@ -2077,9 +2091,9 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
     /**
      * Creates proportional thumbnails
      * 
-     * @param <object> $imObj 
-     * @param <int> $w - image width
-     * @param <int> $h - image height 
+     * @param \Imagick $imObj
+     * @param integer $w - image width
+     * @param integer $h - image height
      */
 	private function imagickThumbProportional(&$imObj, $w, $h) {
 	
@@ -2101,9 +2115,9 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
     /**
      * Creates cropped thumbnails
      * 
-     * @param <object> $imObj 
-     * @param <int> $w - image width
-     * @param <int> $h - image height 
+     * @param \Imagick $imObj
+     * @param integer $w - image width
+     * @param integer $h - image height
      */
 	private function imagickThumbCropped(&$imObj, $w, $h) {
 
@@ -2118,9 +2132,9 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
     /**
      * Creates sampled thumbnails
      * 
-     * @param <object> $imObj 
-     * @param <int> $w - image width
-     * @param <int> $h - image height 
+     * @param \Imagick $imObj
+     * @param integer $w - image width
+     * @param integer $h - image height
      */
 	private function imagickThumbSampled(&$imObj, $w, $h) {
 
@@ -2136,7 +2150,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($fileIn, $fileOut, $w, $h));
 
-		if ($this->NO_IMAGICK) return;
+		if ($this->NO_IMAGICK) return false;
 
 		$bRes = FALSE;
 		$imgDPI = intval($this->gfxConf['imagesDPI']);
@@ -2184,12 +2198,13 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 		return $bRes;
 	}
 
+	/*
 	/**
 	 *  @brief Checks if image format supports transparency
 	 *  
 	 *  @param [in] $strFile File path
 	 *  @return TRUE if supports, othervise FALSE
-	 */
+	 * /
 	private function ImageSupportsTransparency($strFile) {
 		
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($strFile));
@@ -2203,5 +2218,5 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		return $bRes;
 	}
-
+	*/
 }
