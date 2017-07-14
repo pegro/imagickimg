@@ -97,7 +97,7 @@ class LocalPreviewHelper extends \TYPO3\CMS\Core\Resource\Processing\LocalPrevie
 			if (TYPO3_DLOG)
 				Utility\GeneralUtility::devLog(__METHOD__ . ' executing GraphicalFunctions->imagickThumbnailImage', $this->extKey);
 			
-			$graphics = Utility\GeneralUtility::makeInstance('TYPO3\\CMS\\Core\\Imaging\\GraphicalFunctions');
+			$graphics = Utility\GeneralUtility::makeInstance(\TYPO3\CMS\Core\Imaging\GraphicalFunctions::class);
 			$graphics->init();
 			$graphics->mayScaleUp = 0;
 			$graphics->imagickThumbnailImage(
