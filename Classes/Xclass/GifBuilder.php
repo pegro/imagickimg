@@ -4,7 +4,6 @@ namespace ImagickImgTeam\Imagickimg\Xclass;
 /***************************************************************
  *  Copyright notice
  *
- *  (c) 2016 Tomasz Krawczyk <tomasz@typo3.pl>
  *  All rights reserved
  *
  *  This script is part of the TYPO3 project. The TYPO3 project is
@@ -27,2092 +26,805 @@ namespace ImagickImgTeam\Imagickimg\Xclass;
  *  This copyright notice MUST APPEAR in all copies of the script!
  ***************************************************************/
 
+use TYPO3\CMS\Core\Imaging\GraphicalFunctions;
+use TYPO3\CMS\Core\Resource\File;
+use TYPO3\CMS\Core\Resource\ProcessedFile;
+use TYPO3\CMS\Core\Utility\ArrayUtility;
+use TYPO3\CMS\Core\Utility\ExtensionManagementUtility;
+use TYPO3\CMS\Core\Utility\File\BasicFileUtility;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
+use TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer;
+
+/** NOTE: this is any unmodified copy of TYPO3\CMS\Frontend\Imaging\GifBuilder
+ *        this is required to inherit from the GraphicalFunctions class of this
+ *        extension */
 
 /**
- * Contains GifBuilder Xclass object.
+ * GIFBUILDER
  *
- * @author Tomasz Krawczyk <tomasz@typo3.pl>
+ * Generating gif/png-files from TypoScript
+ * Used by the menu-objects and imgResource in TypoScript.
+ *
+ * This class allows for advanced rendering of images with various layers of images, text and graphical primitives.
+ * The concept is known from TypoScript as "GIFBUILDER" where you can define a "numerical array" (TypoScript term as well) of "GIFBUILDER OBJECTS" (like "TEXT", "IMAGE", etc.) and they will be rendered onto an image one by one.
+ * The name "GIFBUILDER" comes from the time where GIF was the only file format supported. PNG is just as well to create today (configured with TYPO3_CONF_VARS[GFX])
+ * Not all instances of this class is truly building gif/png files by layers; You may also see the class instantiated for the purpose of using the scaling functions in the parent class.
+ *
+ * Here is an example of how to use this class (from tslib_content.php, function getImgResource):
+ *
+ * $gifCreator = GeneralUtility::makeInstance(\TYPO3\CMS\Frontend\Imaging\GifBuilder::class);
+ * $gifCreator->init();
+ * $theImage='';
+ * if ($GLOBALS['TYPO3_CONF_VARS']['GFX']['gdlib']) {
+ * $gifCreator->start($fileArray, $this->data);
+ * $theImage = $gifCreator->gifBuild();
+ * }
+ * return $gifCreator->getImageDimensions($theImage);
  */
-class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
-
-	private $NO_IMAGICK = FALSE;
-	private $extKey = 'imagickimg';
-	private $imagick_version = 'Unknown';
-	private $im_version = 'Unknown';
-	private $quantumRange;
-	private $gfxConf;
-	private $transparentFormats = array('gif', 'png', 'bmp', 'tiff');
-	private $debug = FALSE;
-	/** @var $logger \TYPO3\CMS\Core\Log\Logger */
-	private $logger;
-
-	/**
-	 * Init function. Must always call this when using the class.
-	 * This function will read the configuration information from $GLOBALS['TYPO3_CONF_VARS']['GFX'] can set some values in internal variables.
-	 *
-	 * Additionaly function checks if PHP extension Imagick is loaded.
-	 *
-	 * @return	void
-	 */
-	public function init() {
-
-		$this->debug = $GLOBALS['TYPO3_CONF_VARS']['GFX']['imagick_debug'];
-
-		if ($this->debug) {
-			$this->logger = GeneralUtility::makeInstance('TYPO3\CMS\Core\Log\LogManager')->getLogger(__CLASS__);
-			$this->logger->debug(__METHOD__ . ' OK');
-		}
-
-		if (!extension_loaded('imagick')) {
-			$this->NO_IMAGICK = TRUE;
-			$GLOBALS['TYPO3_CONF_VARS']['GFX']['imagick'] = 0;
-
-			$sMsg = 'PHP extension Imagick is not loaded. Extension Imagickimg is deactivated.';			
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-		} else {
-
-			$this->NO_IMAGICK = FALSE;
-			$GLOBALS['TYPO3_CONF_VARS']['GFX']['imagick'] = 1;
-
-			// Get IM version and overwrite user settings
-			$ver = $this->getIMversion(TRUE);
-			$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_version_5'] = $ver;
-
-			if ($ver == 'im6') {				
-				$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_no_effects'] = 0;
-				$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_v5effects'] = 1;
-			}
-			else {
-				$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_no_effects'] = 1;
-				$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_v5effects'] = 0;
-			}
-			
-			$this->getQuantumRangeLong();
-			$this->gfxConf = $GLOBALS['TYPO3_CONF_VARS']['GFX'];
-		}
-
-		parent::init();
-	}
-
-	private function getIMVersionNumber($strVersion) {
-		
-		$strRes = $strVersion;
-		$p = stripos($strVersion, '-');
-		if ($p !== FALSE) {
-			$strRes = substr($strVersion, 0, $p);
-		}
-		
-		return $strRes;
-	}
-	
-   /**
-     * Gets ImageMagick & Imagick versions.
+class GifBuilder extends GraphicalFunctions
+{
+    /**
+     * Contains all text strings used on this image
      *
-     * @param	boolean		If true short string version string will be returned (f.i. im5), else full version array.
-     * @return	string/array	Version info
+     * @var array
+     */
+    public $combinedTextStrings = [];
+
+    /**
+     * Contains all filenames (basename without extension) used on this image
      *
+     * @var array
      */
-	public function getIMversion($returnString = TRUE) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK');
-
-		if ($this->NO_IMAGICK) return '';
-
-		$im_ver = '';
-		try {
-			$im = new \Imagick();
-			$a = $im->getVersion();
-			$im->destroy();
-			$this->imagick_version = \Imagick::IMAGICK_EXTVER;
-
-			// $a['versionString'] is string 'ImageMagick 6.7.9-1 2012-08-21 Q8 http://www.imagemagick.org' (length=60)
-			if (is_array($a)) {
-				// Add Imagick version info
-				$a['versionImagick'] = 'Imagick ' . $this->imagick_version;
-
-				$v = GeneralUtility::trimExplode(' ', $a['versionString']);
-				if (count($v) >= 1) {
-					$this->im_version = $this->getIMVersionNumber($v[1]);
-					$a = explode('.', $v[1]);				
-					if (count($a) >= 2) {
-						$im_ver = 'im' . $a[0];						
-					}
-				}
-			}
-
-			if ($this->debug) $this->logger->debug('Versions', array(
-				'IM' => $this->im_version,
-				'Imagick' => $this->imagick_version
-			));
-
-			if (!$returnString) {
-				$im_ver = $a;
-			}
-		}
-		catch(\ImagickException $e) {
-
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-		}
-
-		return $im_ver;
-	}	
-
-	private function getQuantumRangeLong() {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK');
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-
-			if (version_compare($this->imagick_version, '3.3.0', '>=')) {
-				$this->quantumRange = $newIm->getQuantum();
-			} else {
-				$qrArr = $newIm->getQuantumRange();
-				if (is_array($qrArr)) {
-					$this->quantumRange = intval($qrArr['quantumRangeLong']);
-				} else {
-					$this->quantumRange = 1;
-				}
-			}
-
-			$newIm->destroy();
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-		}
-	}	
-
-	/**
-	 * Converts $imagefile to another file in temp-dir of type $newExt (extension).
-	 *
-	 * @param	string		The image filepath
-	 * @param	string		New extension, eg. "gif", "png", "jpg", "tif". If $newExt is NOT set, the new imagefile will be of the original format. If newExt = 'WEB' then one of the web-formats is applied.
-	 * @param	string		Width. $w / $h is optional. If only one is given the image is scaled proportionally. If an 'm' exists in the $w or $h and if both are present the $w and $h is regarded as the Maximum w/h and the proportions will be kept
-	 * @param	string		Height. See $w
-	 * @param	string		Additional ImageMagick parameters.
-	 * @param	string		Refers to which frame-number to select in the image. '' or 0 will select the first frame, 1 will select the next and so on...
-	 * @param	array		An array with options passed to getImageScale (see this function).
-	 * @param	boolean		If set, then another image than the input imagefile MUST be returned. Otherwise you can risk that the input image is good enough regarding messures etc and is of course not rendered to a new, temporary file in typo3temp/. But this option will force it to.
-	 * @return	array		[0]/[1] is w/h, [2] is file extension and [3] is the filename.
-	 * @see getImageScale(), typo3/show_item.php, fileList_ext::renderImage(), tslib_cObj::getImgResource(), SC_tslib_showpic::show(), maskImageOntoImage(), copyImageOntoImage(), scale()
-	 */
-	public function imageMagickConvert($imagefile, $newExt = '', $w = '', $h = '', $params = '', $frame = '', $options = '', $mustCreate = false)	{
-
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($imagefile, $newExt, $w, $h, $params, $frame, $options, $mustCreate));
-
-		if ($this->NO_IMAGICK) {
-			return parent::imageMagickConvert($imagefile, $newExt, $w, $h, $params, $frame, $options, $mustCreate);
-		}
-
-		if ($info = $this->getImageDimensions($imagefile)) {
-			$newExt = strtolower(trim($newExt));
-			// If no extension is given the original extension is used
-			if (!$newExt) {
-				$newExt = $info[2];
-			}
-			if ($newExt == 'web') {
-				if (GeneralUtility::inList($this->webImageExt, $info[2])) {
-					$newExt = $info[2];
-				} else {
-					$newExt = $this->gif_or_jpg($info[2], $info[0], $info[1]);
-					if (!$params) {
-						$params = $this->cmds[$newExt];
-					}
-				}
-			}
-			if (GeneralUtility::inList($this->imageFileExt, $newExt)) {
-				if (strstr($w . $h, 'm')) {
-					$max = 1;
-				} else {
-					$max = 0;
-				}
-				$data = $this->getImageScale($info, $w, $h, $options);
-				$w = $data['origW'];
-				$h = $data['origH'];
-				// If no conversion should be performed
-				// this flag is TRUE if the width / height does NOT dictate
-				// the image to be scaled!! (that is if no width / height is
-				// given or if the destination w/h matches the original image
-				// dimensions or if the option to not scale the image is set)
-				$noScale = !$w && !$h || $data[0] == $info[0] && $data[1] == $info[1] || !empty($options['noScale']);
-				if ($noScale && !$data['crs'] && !$params && !$frame && $newExt == $info[2] && !$mustCreate) {
-					// Set the new width and height before returning,
-					// if the noScale option is set
-					if (!empty($options['noScale'])) {
-						$info[0] = $data[0];
-						$info[1] = $data[1];
-					}
-					$info[3] = $imagefile;
-					return $info;
-				}
-				$info[0] = $data[0];
-				$info[1] = $data[1];
-				$frame = $this->noFramePrepended ? '' : intval($frame);
-				if (!$params) {
-					$params = $this->cmds[$newExt];
-				}
-				// Cropscaling:
-				if ($data['crs']) {
-					if (!$data['origW']) {
-						$data['origW'] = $data[0];
-					}
-					if (!$data['origH']) {
-						$data['origH'] = $data[1];
-					}
-					$offsetX = (int)(($data[0] - $data['origW']) * ($data['cropH'] + 100) / 200);
-					$offsetY = (int)(($data[1] - $data['origH']) * ($data['cropV'] + 100) / 200); 
-					$params .= ' -crop ' . $data['origW'] . 'x' . $data['origH'] . '+' . $offsetX . '+' . $offsetY . '! ';
-				}
-				$command = $this->scalecmd . ' ' . $info[0] . 'x' . $info[1] . '! ' . $params . ' ';
-				$cropscale = $data['crs'] ? 'crs-V' . $data['cropV'] . 'H' . $data['cropH'] : '';
-				if ($this->alternativeOutputKey) {
-					$theOutputName = GeneralUtility::shortMD5($command . $cropscale . basename($imagefile) . $this->alternativeOutputKey . '[' . $frame . ']');
-				} else {
-					$theOutputName = GeneralUtility::shortMD5($command . $cropscale . $imagefile . filemtime($imagefile) . '[' . $frame . ']');
-				}
-				if ($this->imageMagickConvert_forceFileNameBody) {
-					$theOutputName = $this->imageMagickConvert_forceFileNameBody;
-					$this->imageMagickConvert_forceFileNameBody = '';
-				}
-				// Making the temporary filename:
-				//$this->createTempSubDir('pics/');
-				//$output = $this->absPrefix . $this->tempPath . 'pics/' . $this->filenamePrefix . $theOutputName . '.' . $newExt;				
-				GeneralUtility::mkdir_deep(PATH_site . 'typo3temp/assets/images/');
-				$output = $this->absPrefix . 'typo3temp/assets/images/' . $this->filenamePrefix . $theOutputName . '.' . $newExt;
-				
-				if (!GeneralUtility::isAbsPath($imagefile)) {
-					$imagefile = GeneralUtility::getFileAbsFileName($imagefile, FALSE);
-				}
-
-				$fullOutput = '';
-				if (!GeneralUtility::isAbsPath($output)) {
-					$fullOutput = GeneralUtility::getFileAbsFileName($output, FALSE);
-				} else {
-					$fullOutput = $output;
-				}
-
-				if ($this->dontCheckForExistingTempFile || !file_exists($output))	{
-
-					if ($this->debug) $this->logger->debug(__METHOD__ . ' Conversion', array($imagefile, $fullOutput));
-
-					try {
-						$newIm = new \Imagick($imagefile);
-						$newIm->resizeImage($info[0], $info[1], $this->gfxConf['windowing_filter'], 1);
-
-						$newIm->writeImage($fullOutput);
-						$newIm->destroy();
-						
-						// apply additional params (f.e. effects, compression)
-						if ($params) {
-							$this->applyImagickEffect($fullOutput, $params);
-						}
-						// Optimize image
-						$this->imagickOptimize($fullOutput);
-						GeneralUtility::fixPermissions($fullOutput);
-					}
-					catch(ImagickException $e) {
-						
-						$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-						if ($this->debug) {
-							$this->logger->error($sMsg);
-						} else {
-							GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-						}
-					}
-				}
-				if (file_exists($output))	{
-					$info[3] = $output;
-					$info[2] = $newExt;
-						// params could realisticly change some imagedata!
-					if ($params) {
-						$info=$this->getImageDimensions($info[3]);
-					}
-					$this->logger->debug(__METHOD__  . ' Done', array($info));
-					return $info;
-				} else {
-					$this->logger->debug(__METHOD__  . ' Output doesnt exist');
-				}
-			}
-		}
-	}
-
-	/**
-	 * Executes a ImageMagick "convert" on two filenames, $input and $output using $params before them.
-	 * Can be used for many things, mostly scaling and effects.
-	 *
-	 * @param string $input The relative (to PATH_site) image filepath, input file (read from)
-	 * @param string $output The relative (to PATH_site) image filepath, output filename (written to)
-	 * @param string $params ImageMagick parameters
-	 * @param integer $frame Optional, refers to which frame-number to select in the image. '' or 0
-	 * @return string The result of a call to PHP function "exec()
-	 */
-	public function imageMagickExec($input, $output, $params, $frame = 0) {
-		
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($input, $output, $params, $frame));
-
-		if ($this->NO_IMAGICK) {
-			return parent::imageMagickExec($input, $output, $params, $frame);
-		}
-
-		$ret = '';
-		
-		// Unless noFramePrepended is set in the Install Tool, a frame number is added to
-		// select a specific page of the image (by default this will be the first page)
-		if (!$this->noFramePrepended) {
-			$frame = '[' . (int)$frame . ']';
-		} else {
-			$frame = '';
-		}
-
-		if (!GeneralUtility::isAbsPath($input)) {
-			$fileInput = GeneralUtility::getFileAbsFileName($input, FALSE);
-		} else {
-			$fileInput = $input;
-		}
-
-		if (!GeneralUtility::isAbsPath($output)) {
-			$fileOutput = GeneralUtility::getFileAbsFileName($output, FALSE);
-		} else  {
-			$fileOutput = $output;
-		}
-
-		try {	
-			$newIm = new \Imagick($fileInput);
-		
-			$newIm->writeImage($fileOutput);
-			$newIm->destroy();
-			
-			// apply additional params (f.e. effects, compression)
-			if ($params) {
-				$this->applyImagickEffect($fileOutput, $params);
-			}
-			
-			// Optimize image
-			$this->imagickOptimize($fileOutput);
-			GeneralUtility::fixPermissions($fileOutput);
-			
-			$ret = '1';
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-		}
-		return $ret;
-	}
-	
-	/**
-	 * Returns an array where [0]/[1] is w/h, [2] is extension and [3] is the filename.
-	 * Using ImageMagick
-	 *
-	 * @param	string		The relative (to PATH_site) image filepath
-	 * @return	array
-	 */	 
-	public function imageMagickIdentify($imagefile) {
-		
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($imagefile));
-
-		if ($this->NO_IMAGICK) {
-			return parent::imageMagickIdentify($imagefile);
-		}
-		
-		// BE uses stdGraphics and absolute paths.
-		if (!GeneralUtility::isAbsPath($imagefile)) {
-			$file = GeneralUtility::getFileAbsFileName($imagefile, FALSE);
-		} else {
-			$file = $imagefile;
-		}
-		$arRes = array();
-
-		try {
-			$newIm = new \Imagick($file);
-			// The $im->getImageGeometry() is faster than $im->identifyImage(false).
-			$idArr = $newIm->identifyImage(false);
-
-			$arRes[0] = $idArr['geometry']['width'];
-			$arRes[1] = $idArr['geometry']['height'];
-			$arRes[2] = strtolower(pathinfo($idArr['imageName'], PATHINFO_EXTENSION));
-			$arRes[3] = $imagefile;		
-
-			$newIm->destroy();
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-		}			
-		return $arRes;
-	}
-
-	/**
-	 * Executes a ImageMagick "combine" (or composite in newer times) on four filenames - $input, $overlay and $mask as input files and $output as the output filename (written to)
-	 * Can be used for many things, mostly scaling and effects.
-	 *
-	 * @param	string		The relative (to PATH_site) image filepath, bottom file
-	 * @param	string		The relative (to PATH_site) image filepath, overlay file (top)
-	 * @param	string		The relative (to PATH_site) image filepath, the mask file (grayscale)
-	 * @param	string		The relative (to PATH_site) image filepath, output filename (written to)
-	 * @param	[type]		$handleNegation: ...
-	 * @return	void
-	 */
-	public function combineExec($input, $overlay, $mask, $output, $handleNegation = FALSE) {
-		
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($input, $overlay, $mask, $output, $handleNegation));
-	
-		if ($this->NO_IMAGICK) {
-			return parent::combineExec($input, $overlay, $mask, $output, $handleNegation);
-		}
-
-		if (!GeneralUtility::isAbsPath($input)) {
-			$fileInput = GeneralUtility::getFileAbsFileName($input, FALSE);
-		} else {
-			$fileInput = $input;
-		}
-
-		if (!GeneralUtility::isAbsPath($overlay)) {
-			$fileOver = GeneralUtility::getFileAbsFileName($overlay, FALSE);
-		} else {
-			$fileOver = $overlay;
-		}
-			
-		if (!GeneralUtility::isAbsPath($mask)) {
-			$fileMask = GeneralUtility::getFileAbsFileName($mask, FALSE);
-		} else {
-			$fileMask = $mask;
-		}
-
-		if (!GeneralUtility::isAbsPath($output)) {
-			$fileOutput = GeneralUtility::getFileAbsFileName($output, FALSE);
-		} else  {
-			$fileOutput = $output;
-		}
-
-		try {
-			$baseObj = new \Imagick();
-			$baseObj->readImage($fileInput);
-			
-			$overObj = new \Imagick();
-			$overObj->readImage($fileOver);
-
-			$maskObj = new \Imagick();
-			$maskObj->readImage($fileMask);
-			
-			// get input image dimensions
-			$geo = $baseObj->getImageGeometry();
-			$w = $geo['width'];
-			$h = $geo['height'];
-			
-			// resize mask and overlay
-			$maskObj->resizeImage($w, $h, \Imagick::FILTER_LANCZOS, 1);
-			$overObj->resizeImage($w, $h, \Imagick::FILTER_LANCZOS, 1);
-
-			// Step 1
-			$maskObj->setImageColorspace(\Imagick::COLORSPACE_GRAY); // IM >= 6.5.7
-			$maskObj->setImageMatte(FALSE); // IM >= 6.2.9
-
-			// Step 2
-			$baseObj->compositeImage($maskObj, \Imagick::COMPOSITE_SCREEN, 0, 0); // COMPOSITE_SCREEN
-			$maskObj->negateImage(1);
-			
-			if ($baseObj->getImageFormat() == 'GIF') {
-				$overObj->compositeImage($maskObj, \Imagick::COMPOSITE_SCREEN, 0, 0); // COMPOSITE_SCREEN
-			}
-			$baseObj->compositeImage($overObj, \Imagick::COMPOSITE_MULTIPLY, 0, 0); //COMPOSITE_MULTIPLY
-			$baseObj->setImageMatte(FALSE); // IM >= 6.2.9
-
-			$baseObj->writeImage($fileOutput);
-
-			$maskObj->destroy();
-			$overObj->destroy();
-			$baseObj->destroy();
-
-				// Optimize image
-			$this->imagickOptimize($fileOutput);			
-			GeneralUtility::fixPermissions($output);
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-		}
-		
-		return '';
-	}
-
+    public $combinedFileNames = [];
 
     /**
-     * Compresses given image.
+     * This is the array from which data->field: [key] is fetched. So this is the current record!
      *
-	 * @param	string		file name
-	 * @param	int		quality
-	 * @return	void
+     * @var array
      */
-	private function imagickQuality($imageFile, $imageQuality) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($imageFile, $imageQuality));
-
-		if ($this->NO_IMAGICK) return;
-
-		if (!GeneralUtility::isAbsPath($imageFile)) {
-			$file = GeneralUtility::getFileAbsFileName($imageFile, FALSE);
-		} else {
-			$file = $imageFile;
-		}
-
-		try {
-			$im = new \Imagick($file);
-
-			$fileExt = strtolower(pathinfo($fileResult, PATHINFO_EXTENSION));
-			if (strtoupper($fileExt) == 'GIF') {
-				$im->optimizeImageLayers();
-			}
-			$this->imagickCompressObject($im, $imageQuality);
-			
-			$im->writeImage($file);
-			$im->destroy();
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-		}
-	}
-
+    public $data = [];
 
     /**
-     * Compresses given image.
+     * @var array
+     */
+    public $objBB = [];
+
+    /**
+     * @var string
+     */
+    public $myClassName = 'gifbuilder';
+
+    /**
+     * @var array
+     */
+    public $charRangeMap = [];
+
+    /**
+     * @var int[]
+     */
+    public $XY = [];
+
+    /**
+     * @var ContentObjectRenderer
+     */
+    public $cObj;
+
+    /**
+     * @var array
+     */
+    public $defaultWorkArea = [];
+
+    /**
+     * Initialization of the GIFBUILDER objects, in particular TEXT and IMAGE. This includes finding the bounding box, setting dimensions and offset values before the actual rendering is started.
+     * Modifies the ->setup, ->objBB internal arrays
+     * Should be called after the ->init() function which initializes the parent class functions/variables in general.
+     * The class \TYPO3\CMS\Frontend\ContentObject\Menu\GraphicalMenuContentObject also uses gifbuilder and here there is an interesting use since the function findLargestDims() from that class calls the init() and start() functions to find the total dimensions before starting the rendering of the images.
      *
-	 * @param	Imagick		Imagick object
-	 * @return	void
+     * @param array $conf TypoScript properties for the GIFBUILDER session. Stored internally in the variable ->setup
+     * @param array $data The current data record from \TYPO3\CMS\Frontend\ContentObject\ContentObjectRenderer. Stored internally in the variable ->data
+     * @see ContentObjectRenderer::getImgResource(), \TYPO3\CMS\Frontend\ContentObject\Menu\GraphicalMenuContentObject::makeGifs(), \TYPO3\CMS\Frontend\ContentObject\Menu\GraphicalMenuContentObject::findLargestDims()
      */
-	private function imagickCompressObject(&$imageObj, $imageQuality = 0) {
+    public function start($conf, $data)
+    {
+        if (is_array($conf)) {
+            $this->setup = $conf;
+            $this->data = $data;
+            $this->cObj = GeneralUtility::makeInstance(ContentObjectRenderer::class);
+            $this->cObj->start($this->data);
+            // Hook preprocess gifbuilder conf
+            // Added by Julle for 3.8.0
+            //
+            // Let's you pre-process the gifbuilder configuration. for
+            // example you can split a string up into lines and render each
+            // line as TEXT obj, see extension julle_gifbconf
+            if (is_array($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['tslib/class.tslib_gifbuilder.php']['gifbuilder-ConfPreProcess'])) {
+                foreach ($GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['tslib/class.tslib_gifbuilder.php']['gifbuilder-ConfPreProcess'] as $_funcRef) {
+                    $_params = $this->setup;
+                    $this->setup = GeneralUtility::callUserFunction($_funcRef, $_params, $this);
+                }
+            }
+            // Initializing global Char Range Map
+            $this->charRangeMap = [];
+            if (is_array($GLOBALS['TSFE']->tmpl->setup['_GIFBUILDER.']['charRangeMap.'])) {
+                foreach ($GLOBALS['TSFE']->tmpl->setup['_GIFBUILDER.']['charRangeMap.'] as $cRMcfgkey => $cRMcfg) {
+                    if (is_array($cRMcfg)) {
+                        // Initializing:
+                        $cRMkey = $GLOBALS['TSFE']->tmpl->setup['_GIFBUILDER.']['charRangeMap.'][substr($cRMcfgkey, 0, -1)];
+                        $this->charRangeMap[$cRMkey] = [];
+                        $this->charRangeMap[$cRMkey]['charMapConfig'] = $cRMcfg['charMapConfig.'];
+                        $this->charRangeMap[$cRMkey]['cfgKey'] = substr($cRMcfgkey, 0, -1);
+                        $this->charRangeMap[$cRMkey]['multiplicator'] = (double) $cRMcfg['fontSizeMultiplicator'];
+                        $this->charRangeMap[$cRMkey]['pixelSpace'] = (int)$cRMcfg['pixelSpaceFontSizeRef'];
+                    }
+                }
+            }
+            // Getting sorted list of TypoScript keys from setup.
+            $sKeyArray = ArrayUtility::filterAndSortByNumericKeys($this->setup);
+            // Setting the background color, passing it through stdWrap
+            if ($conf['backColor.'] || $conf['backColor']) {
+                $this->setup['backColor'] = isset($this->setup['backColor.']) ? trim($this->cObj->stdWrap($this->setup['backColor'], $this->setup['backColor.'])) : $this->setup['backColor'];
+            }
+            if (!$this->setup['backColor']) {
+                $this->setup['backColor'] = 'white';
+            }
+            if ($conf['transparentColor.'] || $conf['transparentColor']) {
+                $this->setup['transparentColor_array'] = isset($this->setup['transparentColor.']) ? explode('|', trim($this->cObj->stdWrap($this->setup['transparentColor'], $this->setup['transparentColor.']))) : explode('|', trim($this->setup['transparentColor']));
+            }
+            if (isset($this->setup['transparentBackground.'])) {
+                $this->setup['transparentBackground'] = $this->cObj->stdWrap($this->setup['transparentBackground'], $this->setup['transparentBackground.']);
+            }
+            if (isset($this->setup['reduceColors.'])) {
+                $this->setup['reduceColors'] = $this->cObj->stdWrap($this->setup['reduceColors'], $this->setup['reduceColors.']);
+            }
+            // Set default dimensions
+            if (isset($this->setup['XY.'])) {
+                $this->setup['XY'] = $this->cObj->stdWrap($this->setup['XY'], $this->setup['XY.']);
+            }
+            if (!$this->setup['XY']) {
+                $this->setup['XY'] = '120,50';
+            }
+            // Checking TEXT and IMAGE objects for files. If any errors the objects are cleared.
+            // The Bounding Box for the objects is stored in an array
+            foreach ($sKeyArray as $theKey) {
+                $theValue = $this->setup[$theKey];
+                if ((int)$theKey && ($conf = $this->setup[$theKey . '.'])) {
+                    // Swipes through TEXT and IMAGE-objects
+                    switch ($theValue) {
+                        case 'TEXT':
+                            if ($this->setup[$theKey . '.'] = $this->checkTextObj($conf)) {
+                                // Adjust font width if max size is set:
+                                $maxWidth = isset($this->setup[$theKey . '.']['maxWidth.']) ? $this->cObj->stdWrap($this->setup[$theKey . '.']['maxWidth'], $this->setup[$theKey . '.']['maxWidth.']) : $this->setup[$theKey . '.']['maxWidth'];
+                                if ($maxWidth) {
+                                    $this->setup[$theKey . '.']['fontSize'] = $this->fontResize($this->setup[$theKey . '.']);
+                                }
+                                // Calculate bounding box:
+                                $txtInfo = $this->calcBBox($this->setup[$theKey . '.']);
+                                $this->setup[$theKey . '.']['BBOX'] = $txtInfo;
+                                $this->objBB[$theKey] = $txtInfo;
+                                $this->setup[$theKey . '.']['imgMap'] = 0;
+                            }
+                            break;
+                        case 'IMAGE':
+                            $fileInfo = $this->getResource($conf['file'], $conf['file.']);
+                            if ($fileInfo) {
+                                $this->combinedFileNames[] = preg_replace('/\\.[[:alnum:]]+$/', '', basename($fileInfo[3]));
+                                if ($fileInfo['processedFile'] instanceof ProcessedFile) {
+                                    // Use processed file, if a FAL file has been processed by GIFBUILDER (e.g. scaled/cropped)
+                                    $this->setup[$theKey . '.']['file'] = $fileInfo['processedFile']->getForLocalProcessing(false);
+                                } elseif (!isset($fileInfo['origFile']) && $fileInfo['originalFile'] instanceof File) {
+                                    // Use FAL file with getForLocalProcessing to circumvent problems with umlauts, if it is a FAL file (origFile not set)
+                                    /** @var $originalFile File */
+                                    $originalFile = $fileInfo['originalFile'];
+                                    $this->setup[$theKey . '.']['file'] = $originalFile->getForLocalProcessing(false);
+                                } else {
+                                    // Use normal path from fileInfo if it is a non-FAL file (even non-FAL files have originalFile set, but only non-FAL files have origFile set)
+                                    $this->setup[$theKey . '.']['file'] = $fileInfo[3];
+                                }
+                                $this->setup[$theKey . '.']['BBOX'] = $fileInfo;
+                                $this->objBB[$theKey] = $fileInfo;
+                                if ($conf['mask']) {
+                                    $maskInfo = $this->getResource($conf['mask'], $conf['mask.']);
+                                    if ($maskInfo) {
+                                        // the same selection criteria as regarding fileInfo above apply here
+                                        if ($maskInfo['processedFile'] instanceof ProcessedFile) {
+                                            $this->setup[$theKey . '.']['mask'] = $maskInfo['processedFile']->getForLocalProcessing(false);
+                                        } elseif (!isset($maskInfo['origFile']) && $maskInfo['originalFile'] instanceof File) {
+                                            /** @var $originalFile File */
+                                            $originalFile = $maskInfo['originalFile'];
+                                            $this->setup[$theKey . '.']['mask'] = $originalFile->getForLocalProcessing(false);
+                                        } else {
+                                            $this->setup[$theKey . '.']['mask'] = $maskInfo[3];
+                                        }
+                                    } else {
+                                        $this->setup[$theKey . '.']['mask'] = '';
+                                    }
+                                }
+                            } else {
+                                unset($this->setup[$theKey . '.']);
+                            }
+                            break;
+                    }
+                    // Checks if disabled is set... (this is also done in menu.php / imgmenu!!)
+                    if ($conf['if.']) {
+                        $cObj = GeneralUtility::makeInstance(ContentObjectRenderer::class);
+                        $cObj->start($this->data);
+                        if (!$cObj->checkIf($conf['if.'])) {
+                            unset($this->setup[$theKey]);
+                            unset($this->setup[$theKey . '.']);
+                            unset($this->objBB[$theKey]);
+                        }
+                    }
+                }
+            }
+            // Calculate offsets on elements
+            $this->setup['XY'] = $this->calcOffset($this->setup['XY']);
+            if (isset($this->setup['offset.'])) {
+                $this->setup['offset'] = $this->cObj->stdWrap($this->setup['offset'], $this->setup['offset.']);
+            }
+            $this->setup['offset'] = $this->calcOffset($this->setup['offset']);
+            if (isset($this->setup['workArea.'])) {
+                $this->setup['workArea'] = $this->cObj->stdWrap($this->setup['workArea'], $this->setup['workArea.']);
+            }
+            $this->setup['workArea'] = $this->calcOffset($this->setup['workArea']);
+            foreach ($sKeyArray as $theKey) {
+                $theValue = $this->setup[$theKey];
+                if ((int)$theKey && ($conf = $this->setup[$theKey . '.'])) {
+                    switch ($theValue) {
+                        case 'TEXT':
 
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK');
+                        case 'IMAGE':
+                            if (isset($this->setup[$theKey . '.']['offset.'])) {
+                                $this->setup[$theKey . '.']['offset'] = $this->cObj->stdWrap($this->setup[$theKey . '.']['offset'], $this->setup[$theKey . '.']['offset.']);
+                                unset($this->setup[$theKey . '.']['offset.']);
+                            }
+                            if ($this->setup[$theKey . '.']['offset']) {
+                                $this->setup[$theKey . '.']['offset'] = $this->calcOffset($this->setup[$theKey . '.']['offset']);
+                            }
+                            break;
+                        case 'BOX':
 
-		if ($this->NO_IMAGICK) return;
-
-		$imgExt = strtolower($imageObj->getImageFormat());		
-
-		switch($imgExt) {
-			case 'gif':
-				if (($imageQuality == 100) || ($this->jpegQuality == 100)) {
-					$imageObj->setImageCompression(\Imagick::COMPRESSION_RLE);
-				} else {
-					$imageObj->setImageCompression(\Imagick::COMPRESSION_LZW);
-				}
-				break;
-			
-			case 'jpg':
-			case 'jpeg':
-				if (($imageQuality == 100) || ($this->jpegQuality == 100)) {
-					$imageObj->setImageCompression(\Imagick::COMPRESSION_LOSSLESSJPEG);
-				} else {
-					$imageObj->setImageCompression(\Imagick::COMPRESSION_JPEG);
-				}
-				$imageObj->setImageCompressionQuality(($imageQuality == 0) ? $this->jpegQuality : $imageQuality);
-				break;
-
-			case 'png':
-				$imageObj->setImageCompression(\Imagick::COMPRESSION_ZIP);
-				$imageObj->setImageCompressionQuality(($imageQuality == 0) ? $this->jpegQuality : $imageQuality);
-				break;
-			
-			case 'tif':
-			case 'tiff':
-				if (($imageQuality == 100) || ($this->jpegQuality == 100)) {
-					$imageObj->setImageCompression(\Imagick::COMPRESSION_LOSSLESSJPEG);
-				} else {
-					$imageObj->setImageCompression(\Imagick::COMPRESSION_LZW);
-				}
-				$imageObj->setImageCompressionQuality(($imageQuality == 0) ? $this->jpegQuality : $imageQuality);
-				break;
-
-			case 'tga':
-				$imageObj->setImageCompression(\Imagick::COMPRESSION_RLE);
-				$imageObj->setImageCompressionQuality(($imageQuality == 0) ? $this->jpegQuality : $imageQuality);
-				break;
-		}
-	}
-
+                        case 'ELLIPSE':
+                            if (isset($this->setup[$theKey . '.']['dimensions.'])) {
+                                $this->setup[$theKey . '.']['dimensions'] = $this->cObj->stdWrap($this->setup[$theKey . '.']['dimensions'], $this->setup[$theKey . '.']['dimensions.']);
+                                unset($this->setup[$theKey . '.']['dimensions.']);
+                            }
+                            if ($this->setup[$theKey . '.']['dimensions']) {
+                                $this->setup[$theKey . '.']['dimensions'] = $this->calcOffset($this->setup[$theKey . '.']['dimensions']);
+                            }
+                            break;
+                        case 'WORKAREA':
+                            if (isset($this->setup[$theKey . '.']['set.'])) {
+                                $this->setup[$theKey . '.']['set'] = $this->cObj->stdWrap($this->setup[$theKey . '.']['set'], $this->setup[$theKey . '.']['set.']);
+                                unset($this->setup[$theKey . '.']['set.']);
+                            }
+                            if ($this->setup[$theKey . '.']['set']) {
+                                $this->setup[$theKey . '.']['set'] = $this->calcOffset($this->setup[$theKey . '.']['set']);
+                            }
+                            break;
+                        case 'CROP':
+                            if (isset($this->setup[$theKey . '.']['crop.'])) {
+                                $this->setup[$theKey . '.']['crop'] = $this->cObj->stdWrap($this->setup[$theKey . '.']['crop'], $this->setup[$theKey . '.']['crop.']);
+                                unset($this->setup[$theKey . '.']['crop.']);
+                            }
+                            if ($this->setup[$theKey . '.']['crop']) {
+                                $this->setup[$theKey . '.']['crop'] = $this->calcOffset($this->setup[$theKey . '.']['crop']);
+                            }
+                            break;
+                        case 'SCALE':
+                            if (isset($this->setup[$theKey . '.']['width.'])) {
+                                $this->setup[$theKey . '.']['width'] = $this->cObj->stdWrap($this->setup[$theKey . '.']['width'], $this->setup[$theKey . '.']['width.']);
+                                unset($this->setup[$theKey . '.']['width.']);
+                            }
+                            if ($this->setup[$theKey . '.']['width']) {
+                                $this->setup[$theKey . '.']['width'] = $this->calcOffset($this->setup[$theKey . '.']['width']);
+                            }
+                            if (isset($this->setup[$theKey . '.']['height.'])) {
+                                $this->setup[$theKey . '.']['height'] = $this->cObj->stdWrap($this->setup[$theKey . '.']['height'], $this->setup[$theKey . '.']['height.']);
+                                unset($this->setup[$theKey . '.']['height.']);
+                            }
+                            if ($this->setup[$theKey . '.']['height']) {
+                                $this->setup[$theKey . '.']['height'] = $this->calcOffset($this->setup[$theKey . '.']['height']);
+                            }
+                            break;
+                    }
+                }
+            }
+            // Get trivial data
+            $XY = GeneralUtility::intExplode(',', $this->setup['XY']);
+            $maxWidth = isset($this->setup['maxWidth.']) ? (int)$this->cObj->stdWrap($this->setup['maxWidth'], $this->setup['maxWidth.']) : (int)$this->setup['maxWidth'];
+            $maxHeight = isset($this->setup['maxHeight.']) ? (int)$this->cObj->stdWrap($this->setup['maxHeight'], $this->setup['maxHeight.']) : (int)$this->setup['maxHeight'];
+            $XY[0] = MathUtility::forceIntegerInRange($XY[0], 1, $maxWidth ?: 2000);
+            $XY[1] = MathUtility::forceIntegerInRange($XY[1], 1, $maxHeight ?: 2000);
+            $this->XY = $XY;
+            $this->w = $XY[0];
+            $this->h = $XY[1];
+            $this->OFFSET = GeneralUtility::intExplode(',', $this->setup['offset']);
+            // this sets the workArea
+            $this->setWorkArea($this->setup['workArea']);
+            // this sets the default to the current;
+            $this->defaultWorkArea = $this->workArea;
+        }
+    }
 
     /**
-     * Removes profiles and comments from the image.
+     * Initiates the image file generation if ->setup is TRUE and if the file did not exist already.
+     * Gets filename from fileName() and if file exists in typo3temp/assets/images/ dir it will - of course - not be rendered again.
+     * Otherwise rendering means calling ->make(), then ->output(), then ->destroy()
      *
-	 * @param	Imagick		Imagick object
-	 * @return	void
+     * @return string The filename for the created GIF/PNG file. The filename will be prefixed "GB_
+     * @see make(), fileName()
      */
-	private function imagickRemoveProfile(&$imageObj) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK');
-
-		if ($this->NO_IMAGICK) return;
-
-		if ($this->gfxConf['im_useStripProfileByDefault']) {
-		
-			$profile = $this->gfxConf['im_stripProfileCommand'];
-			if (substr($profile, 0, 1) == '+') {			
-					// remove profiles
-				if ( $this->gfxConf['im_stripProfileCommand'] == '+profile \'*\'') {
-						// remove all profiles and comments
-					$imageObj->stripImage();
-				}
-			}
-		}
-	}
+    public function gifBuild()
+    {
+        if ($this->setup) {
+            // Relative to PATH_site
+            $gifFileName = $this->fileName('assets/images/');
+            // File exists
+            if (!file_exists($gifFileName)) {
+                // Create temporary directory if not done:
+                GeneralUtility::mkdir_deep(PATH_site . 'typo3temp/assets/images/');
+                // Create file:
+                $this->make();
+                $this->output($gifFileName);
+                $this->destroy();
+            }
+            return $gifFileName;
+        }
+        return '';
+    }
 
     /**
-     * Optimizes image resolution.
+     * The actual rendering of the image file.
+     * Basically sets the dimensions, the background color, the traverses the array of GIFBUILDER objects and finally setting the transparent color if defined.
+     * Creates a GDlib resource in $this->im and works on that
+     * Called by gifBuild()
      *
-	 * @param	Imagick		Imagick object
-	 * @return	void
+     * @access private
+     * @see gifBuild()
      */
-	private function imagickOptimizeResolution(&$imageObj) {
+    public function make()
+    {
+        // Get trivial data
+        $XY = $this->XY;
+        // Reset internal properties
+        $this->saveAlphaLayer = false;
+        // Gif-start
+        $this->im = imagecreatetruecolor($XY[0], $XY[1]);
+        $this->w = $XY[0];
+        $this->h = $XY[1];
+        // Transparent layer as background if set and requirements are met
+        if (!empty($this->setup['backColor']) && $this->setup['backColor'] === 'transparent' && $this->png_truecolor && !$this->setup['reduceColors'] && (empty($this->setup['format']) || $this->setup['format'] === 'png')) {
+            // Set transparency properties
+            imagesavealpha($this->im, true);
+            // Fill with a transparent background
+            $transparentColor = imagecolorallocatealpha($this->im, 0, 0, 0, 127);
+            imagefill($this->im, 0, 0, $transparentColor);
+            // Set internal properties to keep the transparency over the rendering process
+            $this->saveAlphaLayer = true;
+            // Force PNG in case no format is set
+            $this->setup['format'] = 'png';
+            $BGcols = [];
+        } else {
+            // Fill the background with the given color
+            $BGcols = $this->convertColor($this->setup['backColor']);
+            $Bcolor = imagecolorallocate($this->im, $BGcols[0], $BGcols[1], $BGcols[2]);
+            imagefilledrectangle($this->im, 0, 0, $XY[0], $XY[1], $Bcolor);
+        }
+        // Traverse the GIFBUILDER objects an render each one:
+        if (is_array($this->setup)) {
+            $sKeyArray = ArrayUtility::filterAndSortByNumericKeys($this->setup);
+            foreach ($sKeyArray as $theKey) {
+                $theValue = $this->setup[$theKey];
+                if ((int)$theKey && ($conf = $this->setup[$theKey . '.'])) {
+                    // apply stdWrap to all properties, except for TEXT objects
+                    // all properties of the TEXT sub-object have already been stdWrap-ped
+                    // before in ->checkTextObj()
+                    if ($theValue !== 'TEXT') {
+                        $isStdWrapped = [];
+                        foreach ($conf as $key => $value) {
+                            $parameter = rtrim($key, '.');
+                            if (!$isStdWrapped[$parameter] && isset($conf[$parameter . '.'])) {
+                                $conf[$parameter] = $this->cObj->stdWrap($conf[$parameter], $conf[$parameter . '.']);
+                                $isStdWrapped[$parameter] = 1;
+                            }
+                        }
+                    }
 
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK');
+                    switch ($theValue) {
+                        case 'IMAGE':
+                            if ($conf['mask']) {
+                                $this->maskImageOntoImage($this->im, $conf, $this->workArea);
+                            } else {
+                                $this->copyImageOntoImage($this->im, $conf, $this->workArea);
+                            }
+                            break;
+                        case 'TEXT':
+                            if (!$conf['hide']) {
+                                if (is_array($conf['shadow.'])) {
+                                    $isStdWrapped = [];
+                                    foreach ($conf['shadow.'] as $key => $value) {
+                                        $parameter = rtrim($key, '.');
+                                        if (!$isStdWrapped[$parameter] && isset($conf[$parameter . '.'])) {
+                                            $conf['shadow.'][$parameter] = $this->cObj->stdWrap($conf[$parameter], $conf[$parameter . '.']);
+                                            $isStdWrapped[$parameter] = 1;
+                                        }
+                                    }
+                                    $this->makeShadow($this->im, $conf['shadow.'], $this->workArea, $conf);
+                                }
+                                if (is_array($conf['emboss.'])) {
+                                    $isStdWrapped = [];
+                                    foreach ($conf['emboss.'] as $key => $value) {
+                                        $parameter = rtrim($key, '.');
+                                        if (!$isStdWrapped[$parameter] && isset($conf[$parameter . '.'])) {
+                                            $conf['emboss.'][$parameter] = $this->cObj->stdWrap($conf[$parameter], $conf[$parameter . '.']);
+                                            $isStdWrapped[$parameter] = 1;
+                                        }
+                                    }
+                                    $this->makeEmboss($this->im, $conf['emboss.'], $this->workArea, $conf);
+                                }
+                                if (is_array($conf['outline.'])) {
+                                    $isStdWrapped = [];
+                                    foreach ($conf['outline.'] as $key => $value) {
+                                        $parameter = rtrim($key, '.');
+                                        if (!$isStdWrapped[$parameter] && isset($conf[$parameter . '.'])) {
+                                            $conf['outline.'][$parameter] = $this->cObj->stdWrap($conf[$parameter], $conf[$parameter . '.']);
+                                            $isStdWrapped[$parameter] = 1;
+                                        }
+                                    }
+                                    $this->makeOutline($this->im, $conf['outline.'], $this->workArea, $conf);
+                                }
+                                $conf['imgMap'] = 1;
+                                $this->makeText($this->im, $conf, $this->workArea);
+                            }
+                            break;
+                        case 'OUTLINE':
+                            if ($this->setup[$conf['textObjNum']] === 'TEXT' && ($txtConf = $this->checkTextObj($this->setup[$conf['textObjNum'] . '.']))) {
+                                $this->makeOutline($this->im, $conf, $this->workArea, $txtConf);
+                            }
+                            break;
+                        case 'EMBOSS':
+                            if ($this->setup[$conf['textObjNum']] === 'TEXT' && ($txtConf = $this->checkTextObj($this->setup[$conf['textObjNum'] . '.']))) {
+                                $this->makeEmboss($this->im, $conf, $this->workArea, $txtConf);
+                            }
+                            break;
+                        case 'SHADOW':
+                            if ($this->setup[$conf['textObjNum']] === 'TEXT' && ($txtConf = $this->checkTextObj($this->setup[$conf['textObjNum'] . '.']))) {
+                                $this->makeShadow($this->im, $conf, $this->workArea, $txtConf);
+                            }
+                            break;
+                        case 'BOX':
+                            $this->makeBox($this->im, $conf, $this->workArea);
+                            break;
+                        case 'EFFECT':
+                            $this->makeEffect($this->im, $conf);
+                            break;
+                        case 'ADJUST':
+                            $this->adjust($this->im, $conf);
+                            break;
+                        case 'CROP':
+                            $this->crop($this->im, $conf);
+                            break;
+                        case 'SCALE':
+                            $this->scale($this->im, $conf);
+                            break;
+                        case 'WORKAREA':
+                            if ($conf['set']) {
+                                // this sets the workArea
+                                $this->setWorkArea($conf['set']);
+                            }
+                            if (isset($conf['clear'])) {
+                                // This sets the current to the default;
+                                $this->workArea = $this->defaultWorkArea;
+                            }
+                            break;
+                        case 'ELLIPSE':
+                            $this->makeEllipse($this->im, $conf, $this->workArea);
+                            break;
+                    }
+                }
+            }
+        }
+        // Preserve alpha transparency
+        if (!$this->saveAlphaLayer) {
+            if ($this->setup['transparentBackground']) {
+                // Auto transparent background is set
+                $Bcolor = imagecolorclosest($this->im, $BGcols[0], $BGcols[1], $BGcols[2]);
+                imagecolortransparent($this->im, $Bcolor);
+            } elseif (is_array($this->setup['transparentColor_array'])) {
+                // Multiple transparent colors are set. This is done via the trick that all transparent colors get
+                // converted to one color and then this one gets set as transparent as png/gif can just have one
+                // transparent color.
+                $Tcolor = $this->unifyColors($this->im, $this->setup['transparentColor_array'], (int)$this->setup['transparentColor.']['closest']);
+                if ($Tcolor >= 0) {
+                    imagecolortransparent($this->im, $Tcolor);
+                }
+            }
+        }
+    }
 
-		if ($this->NO_IMAGICK) return;
-
-		$imgDPI = intval($this->gfxConf['imagesDPI']);
-
-		if ($imgDPI > 0) {
-			$imageObj->setImageResolution($imgDPI, $imgDPI);
-		}
-	}
-	
-    /**
-     * Executes all optimization methods on the image. Execute it just before storing image to disk.
-     * 
-     * @param Imagick		Imagick object
-	 * @return	void
-     */
-	private function imagickOptimize($imageFile) {
-		
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($imageFile));
-
-		if ($this->NO_IMAGICK) return;
-		
-		if (!GeneralUtility::isAbsPath($imageFile)) {
-			$file = GeneralUtility::getFileAbsFileName($imageFile, FALSE);
-		} else {
-			$file = $imageFile;
-		}
-
-		try {
-			$im = new \Imagick($file);
-
-			$im->optimizeImageLayers();
-			$this->imagickOptimizeObject($im);
-			
-			$im->writeImage($file);
-			$im->destroy();
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-		}
-	}
-
-
-	private function imagickOptimizeObject(&$imObject) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK');
-
-		if ($this->NO_IMAGICK) return;
-
-		$imObject->optimizeImageLayers();
-		
-		$this->imagickRemoveProfile($imObject);
-		$this->imagickOptimizeResolution($imObject);
-		$this->imagickCompressObject($imObject);
-	}
-
-
-	private function imagickSetColorspace($file, $colorSpace) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $colorSpace));
-
-		if ($this->NO_IMAGICK) return;
-
-		if (!GeneralUtility::isAbsPath($file)) {
-			$fileResult = GeneralUtility::getFileAbsFileName($file, FALSE);
-		} else {
-			$fileResult = $file;
-		}
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($fileResult);
-
-			switch(strtoupper($colorSpace)) {
-/*
-				case 'GRAY':
-					
-					$newIm->setImageColorspace(\Imagick::COLORSPACE_GRAY); // IM >= 6.5.7
-					
-					if ($this->debug) $this->logger->notice(__METHOD__  . ' Does this work ?!?!');
-					/ *
-					$newIm->setImageType(\Imagick::IMGTYPE_GRAYSCALE);
-					if (version_compare($this->im_version, '3.0.0', '>=')) {
-						$newIm->transformImageColorspace(\Imagick::COLORSPACE_GRAY);
-					}* /
-					break;
-*/
-				case 'RGB':
-					if (version_compare($this->imagick_version, '3.0.0', '>=')) {
-						$newIm->transformImageColorspace(\Imagick::COLORSPACE_SRGB);
-					} else {
-						$newIm->setImageColorspace(\Imagick::COLORSPACE_SRGB);
-					}
-
-					/* http://www.imagemagick.org/script/color-management.php
-					$cs = $newIm->getColorspace();
-					
-					if (($cs != \Imagick::COLORSPACE_RGB) || ($cs != \Imagick::COLORSPACE_SRGB)) {
-						
-					}
-
-					if ((version_compare($this->im_version, '6.7', '>=') && version_compare($this->im_version, '6.7.5-5', '>=')) ||
-						(version_compare($this->im_version, '6.8', '>=') && version_compare($this->im_version, '6.8.0-3', '>=')))
-					{
-						if (version_compare($this->imagick_version, '3.0.0', '>=')) {
-							$newIm->transformImageColorspace(\Imagick::COLORSPACE_SRGB);
-						} else {
-							$newIm->setImageColorspace(\Imagick::COLORSPACE_SRGB);
-						}
-					} else {
-						$newIm->setImageColorspace(\Imagick::COLORSPACE_RGB);
-					}*/
-					break;
-			}
-
-			$newIm->writeImage($fileResult);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}		
-	}
-
-	/**
-	 * Reduce colors in image using IM and create a palette based image if possible (<=256 colors)
-	 *
-	 * @param	string		Image file to reduce
-	 * @param	integer		Number of colors to reduce the image to.
-	 * @return	string		Reduced file
-	 */
-	public function IMreduceColors($file, $cols) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $cols));
-
-		if ($this->NO_IMAGICK) {
-			return parent::IMreduceColors($file, $cols);
-		}
-
-		$fI = GeneralUtility::split_fileref($file);
-		$ext = strtolower($fI['fileext']);
-		$result = $this->randomName() . '.' . $ext;
-		$reduce = MathUtility::forceIntegerInRange($cols, 0, ($ext == 'gif' ? 256 : $this->truecolorColors), 0);
-		if ($reduce > 0) {
-
-			if (!GeneralUtility::isAbsPath($file)) {
-				$fileInput = GeneralUtility::getFileAbsFileName($file, FALSE);
-			} else {
-				$fileInput = $file;
-			}
-
-			if (!GeneralUtility::isAbsPath($result)) {
-				$fileResult = GeneralUtility::getFileAbsFileName($result, FALSE);
-			} else {
-				$fileResult = $result;
-			}
-
-			if ($this->debug) {
-				$this->logger->debug('Params ', array($fileInput, $fileResult, $reduce));
-			}
-
-			try {
-				$newIm = new \Imagick($fileInput);
-			
-				if ($reduce <= 256) {
-					$newIm->setType(\Imagick::IMGTYPE_PALETTE);
-				}
-				if (($ext == 'png') && ($reduce <= 256)) {
-					$newIm->setImageDepth(8);
-					$newIm->setImageFormat('PNG8');
-				}			
-				
-					// Reduce the amount of colors
-				$newIm->quantizeImage($reduce, \Imagick::COLORSPACE_RGB, 0, FALSE, FALSE);
-				
-				$newIm->writeImage($fileResult);
-				$newIm->destroy();
-				
-				GeneralUtility::fixPermissions($fileResult);
-				
-				return $result;	
-			}
-			catch(\ImagickException $e) {
-				
-				$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-				if ($this->debug) {
-					$this->logger->error($sMsg);
-				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-				}
-			}			
-		}
-		return '';
-	}
-
-    /**
-     * Main function applying Imagick effects
+    /*********************************************
      *
-	 * @param	pointer		The image pointer (reference)
-	 * @param	string		The ImageMagick parameters. Like effects, scaling etc.
-	 * @return	void
-     */
-	private function applyImagickEffect($file, $command) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $command));
-
-		if ($this->NO_IMAGICK || $this->NO_IM_EFFECTS) {
-			$this->logger->debug(__METHOD__  . ' Abort! ', array($this->NO_IMAGICK, $this->NO_IM_EFFECTS, !$this->V5_EFFECTS));
-			return;
-		}
-
-		$command = strtolower(trim($command));
-		$command = str_ireplace('-', '', $command);		
-		$elems = GeneralUtility::trimExplode(' ', $command, true);
-		$nElems = count($elems);
-
-		if ($this->debug) $this->logger->debug('Elems', array($file, $elems));
-
-			// Here we're trying to identify ImageMagick parameters
-			// Image compression see tslib_cObj->image_compression
-			// Image effects see tslib_cObj->image_effects
-
-		if ($nElems == 1) {
-
-			switch($elems[0]) {
-				// effects
-				case 'normalize':
-					$this->imagickNormalize($file);
-					break;
-
-				case 'contrast':
-					$this->imagickContrast($file);
-					break;
-			}
-		} 
-		elseif ($nElems == 2) {
-
-			switch($elems[0]) {
-				// effects
-				case 'rotate':
-					$this->imagickRotate($file, $elems[1]);
-					break;
-
-				case 'colorspace':
-					if ($elems[1] == 'gray') {
-						$this->imagickGray($file);
-					} else {
-						$this->imagickSetColorspace($file, $elems[1]);
-					}
-					break;
-
-				case 'sharpen':
-					$this->imagickSharpen($file, $elems[1]);
-					break;
-					
-				case 'gamma':	// brighter, darker
-					$this->imagickGamma($file, $elems[1]);
-					break;
-				
-				case '@sepia':
-					$this->imagickSepia($file, floatval($elems[1]));
-					break;
-					
-				case '@corners':
-					$this->imagickRoundCorners($file, intval($elems[1]));
-					break;
-
-				case '@polaroid':
-					$this->imagickPolaroid($file, floatval($elems[1]));
-					break;
-
-				// compression
-				case 'colors':
-					$reduced = $this->IMreduceColors($file, intval($elems[1]));
-					if ($reduced) {
-						@copy($reduced, $file);
-						@unlink($reduced);
-					}
-					break;
-
-				case 'quality':
-					$this->imagickQuality($file, intval($elems[1]));
-					break;
-				
-				case 'crop':
-					$this->imagickCrop($file, $elems[1]);
-					break;
-			}
-		}
-		elseif ($nElems == 3) {
-				
-				// effects without parameters
-			switch($elems[0]) {
-			
-				case 'normalize':
-					$this->imagickNormalize($file);
-					break;
-
-				case 'contrast':
-					$this->imagickContrast($file);
-					break;
-			}
-				// compression 
-			switch($elems[1]) {
-
-				case 'colors':
-					$reduced = $this->IMreduceColors($file, intval($elems[2]));
-					if ($reduced) {
-						@copy($reduced, $file);
-						@unlink($reduced);
-					}
-					break;
-
-				case 'quality':
-					$this->imagickQuality($file, intval($elems[2]));
-					break;
-			}
-
-		}
-		elseif ($nElems == 4) {
-
-			// effect
-			switch($elems[0]) {
-
-				case 'rotate':
-					$this->imagickRotate($file, $elems[1]);
-					break;
-
-				case 'colorspace':
-					if ($elems[1] == 'gray')
-						$this->imagickGray($file);
-					else
-						$this->imagickSetColorspace($file, $elems[1]);
-					break;
-
-				case 'sharpen':
-					$this->imagickSharpen($file, $elems[1]);
-					break;
-					// brighter, darker
-				case 'gamma':
-					$this->imagickGamma($file, intval($elems[1]));
-					break;
-				
-				case '@sepia':
-					$this->imagickSepia($file, floatval($elems[1]));
-					break;
-					
-				case '@corners':
-					$this->imagickRoundCorners($file, intval($elems[1]));
-					break;
-
-				case '@polaroid':
-					$this->imagickPolaroid($file, floatval($elems[1]));
-					break;
-			}
-			
-			// compression
-			switch($elems[2]) {
-
-				case 'colors':
-					$reduced = $this->IMreduceColors($file, intval($elems[3]));
-					if ($reduced) {
-						@copy($reduced, $file);
-						@unlink($reduced);
-					}
-					break;
-
-				case 'quality':
-					$this->imagickQuality($file, intval($elems[3]));
-					break;
-			}			
-		}
-		elseif ($nElems == 6) {
-
-			// colorspace
-			switch($elems[0]) {
-				case 'colorspace':
-					if ($elems[1] == 'gray') {
-						$this->imagickGray($file);
-					} else {
-						$this->imagickSetColorspace($file, $elems[1]);
-					}
-					break;
-			}
-
-			// quality
-			switch($elems[2]) {
-				case 'quality':
-					$this->imagickQuality($file, intval($elems[3]));
-					break;
-			}
-
-			// effect
-			switch($elems[4]) {
-
-				case 'rotate':
-					$this->imagickRotate($file, $elems[5]);
-					break;
-
-				case 'colorspace':
-					if ($elems[1] == 'gray') {
-						$this->imagickGray($file);
-					} else {
-						$this->imagickSetColorspace($file, $elems[1]);
-					}
-					break;
-
-				case 'sharpen':
-					$this->imagickSharpen($file, $elems[5]);
-					break;
-					// brighter, darker
-				case 'gamma':
-					$this->imagickGamma($file, intval($elems[5]));
-					break;
-
-				case '@sepia':
-					$this->imagickSepia($file, floatval($elems[5]));
-					break;
-					
-				case '@corners':
-					$this->imagickRoundCorners($file, intval($elems[5]));
-					break;
-
-				case '@polaroid':
-					$this->imagickPolaroid($file, floatval($elems[5]));
-					break;
-			}
-		}
-		elseif ($nElems == 8) {
-
-			// colorspace
-			switch($elems[0]) {
-				case 'colorspace':
-					if ($elems[1] == 'gray') {
-						$this->imagickGray($file);
-					} else {
-						$this->imagickSetColorspace($file, $elems[1]);
-					}
-					break;
-			}
-
-			// quality
-			switch($elems[2]) {
-				case 'quality':
-					$this->imagickQuality($file, intval($elems[3]));
-					break;
-			}
-
-			// effect
-			switch($elems[4]) {
-
-				case 'rotate':
-					$this->imagickRotate($file, $elems[5]);
-					break;
-
-				case 'colorspace':
-					if ($elems[1] == 'gray') {
-						$this->imagickGray($file);
-					} else {
-						$this->imagickSetColorspace($file, $elems[1]);
-					}
-					break;
-
-				case 'sharpen':
-					$this->imagickSharpen($file, $elems[5]);
-					break;
-					// brighter, darker
-				case 'gamma':
-					$this->imagickGamma($file, intval($elems[5]));
-					break;
-
-				case '@sepia':
-					$this->imagickSepia($file, floatval($elems[5]));
-					break;
-					
-				case '@corners':
-					$this->imagickRoundCorners($file, intval($elems[5]));
-					break;
-
-				case '@polaroid':
-					$this->imagickPolaroid($file, floatval($elems[5]));
-					break;
-			}
-
-			// effect
-			switch($elems[6]) {
-				case 'crop':
-					$this->imagickCrop($file, $elems[7]);
-					break;
-			}
-		}
-		else {
-			$this->logger->error(__METHOD__ . ' > Not expected amount of parameters', array($elems));
-		}
-
-		GeneralUtility::fixPermissions($file);
-	}
-
-
-	private function imagickGamma($file, $value) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->gammaImage($value);
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}		
-	}
-	
-	private function imagickBlur($file, $value) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->blurImage($value);
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}		
-	}
-	
-	private function imagickSharpen($file, $value) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-
-			$arr = GeneralUtility::trimExplode('x', $value);
-			$radius = $arr[0];
-			$sigma = $arr[1];
-		
-			$newIm->sharpenImage($radius, $sigma);
-
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickRotate($file, $value) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->rotateImage(new \ImagickPixel(), $value);
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickSolarize($file, $value) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->solarizeImage($value);
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickSwirl($file, $value) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->swirlImage($value);
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickWawe($file, $value1, $value2) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value1, $value2));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->waveImage($value1, $value2);
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickCharcoal($file, $value) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->charcoalImage($value);
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickGray($file) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-
-			$newIm->setImageType(\Imagick::IMGTYPE_GRAYSCALE);
-
-			$newIm->writeImage($file);
-			$newIm->destroy();
-
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickEdge($file, $value) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->edgeImage($value);
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickEmboss($file) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->embossImage(0);
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickFlip($file) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->flipImage();
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickFlop($file) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->flopImage();
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickColors($file, $value) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->quantizeImage($value, $newIm->getImageColorspace(), 0, false, false);
-				// Only save one pixel of each color
-			$newIm->uniqueImageColors();
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickShear($file, $value) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->shearImage($newIm->getImageBackgroundColor(), $value, $value);
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickInvert($file) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->negateImage(0);
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickNormalize($file) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-		
-			$newIm->normalizeImage();
-		
-			$newIm->writeImage($file);
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickContrast($file, $value = 1) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-
-			$newIm->contrastImage($value);
-
-			$newIm->writeImage($file);
-			$newIm->destroy();
-
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickSepia($file, $value) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-
-			$newIm->sepiaToneImage($value); // >= Imagick 2.0.0
-
-			$newIm->writeImage($file);
-			$newIm->destroy();
-
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-	
-	private function imagickRoundCorners($file, $value) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-		
-		try {
-			$newIm = new \Imagick();
-			$newIm->setBackgroundColor(new \ImagickPixel('transparent'));
-			$newIm->readImage($file);
-
-			$newIm->roundCorners($value, $value);
-			
-			//if ($this->ImageSupportsTransparency($file)) {				
-				$newIm->writeImage($file);
-			/*} else {
-				$fileExt = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-				$one = 1;
-				$strNewFileName = str_replace($fileExt, 'png', $file, $one);
-
-				if ($this->debug) $this->logger->debug(__METHOD__  . ' File: ', array('fileExt' => $fileExt, 'strNewFileName' => $strNewFileName));
-				
-				$color = new \ImagickPixel('black');
-				$alpha = 0.0; // Fully transparent
-				$fuzz = 0.5 * $this->quantumRange;
-
-				if (version_compare(\Imagick::IMAGICK_EXTVER, '3.3.0', '>=')) {
-					$newIm->transparentPaintImage($color, $alpha, $fuzz, false);
-				} else {
-					$newIm->paintTransparentImage($color, $alpha, $fuzz);
-				}
-
-				$newIm->setImageFormat('png');
-				
-				$newIm->writeImage($strNewFileName);
-			}*/
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickPolaroid($file, $value) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->setBackgroundColor(new \ImagickPixel('transparent'));
-			$newIm->readImage($file);
-
-			// polaroidImage() changes image geometry so we have to resize images after aplying the effect
-			$geo = $newIm->getImageGeometry();			
-			$newIm->polaroidImage(new \ImagickDraw(), $value); // IM >= 6.3.2			
-			$newIm->resizeImage($geo['width'], $geo['height'], $this->gfxConf['windowing_filter'], 1);
-
-			//if ($this->ImageSupportsTransparency($file)) {				
-				$newIm->writeImage($file);
-			/*} else {
-				$fileExt = strtolower(pathinfo($file, PATHINFO_EXTENSION));
-				$one = 1;
-				$strNewFileName = str_replace($fileExt, 'png', $file, $one);
-
-				if ($this->debug) $this->logger->debug('Polaroid params: ', array('ext' => $fileExt, 'new_name' => $strNewFileName));
-				$color = new \ImagickPixel('black');
-				$alpha = 0.0; // Fully transparent
-				$fuzz = 0.5 * $this->quantumRange;
-
-				if (version_compare($this->imagick_version, '3.3.0', '>=')) {
-					$newIm->transparentPaintImage($color, $alpha, $fuzz, false);
-				} else {
-					$newIm->paintTransparentImage($color, $alpha, $fuzz);
-				}
-				$newIm->setImageFormat('png');
-				
-				$newIm->writeImage($strNewFileName);
-			}*/			
-			$newIm->destroy();
-			
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	private function imagickCrop($file, $value) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $value));
-
-		if ($this->NO_IMAGICK) return;
-
-		try {
-			$newIm = new \Imagick();
-			$newIm->readImage($file);
-
-			$strVal = str_replace('!', '', $value);
-			$arr = GeneralUtility::trimExplode('+', $strVal);
-			$dims = $arr[0];
-			$x = $arr[1];
-			$y = $arr[2];
-			$arr = GeneralUtility::trimExplode('x', $dims);
-			$w = $arr[0];
-			$h = $arr[1];
-
-			$newIm->cropImage($w, $h, $x, $y);
-
-			$newIm->writeImage($file);
-			$newIm->destroy();
-
-			return TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return FALSE;
-		}
-	}
-
-	/**
-     * Returns an array with detailed image info.
+     * Various helper functions
      *
-     * @param 	string	File path
-	 * @return	array	Image information
+     ********************************************/
+    /**
+     * Initializing/Cleaning of TypoScript properties for TEXT GIFBUILDER objects
+     *
+     * 'cleans' TEXT-object; Checks fontfile and other vital setup
+     * Finds the title if its a 'variable' (instantiates a cObj and loads it with the ->data record)
+     * Performs caseshift if any.
+     *
+     * @param array $conf GIFBUILDER object TypoScript properties
+     * @return array Modified $conf array IF the "text" property is not blank
+     * @access private
      */
-	public function imagickGetDetailedImageInfo($imagefile) {
-		
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($imagefile));
-
-		if ($this->NO_IMAGICK) return;
-
-		if (!GeneralUtility::isAbsPath($imagefile)) {
-			$file = GeneralUtility::getFileAbsFileName($imagefile, FALSE);
-		} else {
-			$file = $imagefile;
-		}
-
-		try {
-			$im = new \Imagick();
-			$im->readImage($file);
-			$identify = $im->identifyImage();
-
-			$res = array(
-				'Basic image properties' => array(
-					'Image dimensions: ' => $identify['geometry']['width'] . 'x' . $identify['geometry']['height'],
-					'Image format: ' => $identify['format'],
-					'Image type: ' => $identify['type'],
-					'Colorspace: ' => $identify['colorSpace'],
-					'Units: ' => $identify['units'],
-					'Compression: ' => $identify['compression']
-				)
-			);
-			if (!empty($identify['resolution']['x'])) {			
-				$res['Basic image properties'] = array_merge($res['Basic image properties'], 
-					array(
-						'Resolution: ' => $identify['resolution']['x'] . 'x' . $identify['resolution']['y'] . ' dpi'
-					)
-				);
-			}
-
-			$res['All image properties'] = array();
-			foreach ( $im->getImageProperties() as $k => $v ) {
-				$res['All image properties'] = array_merge($res['All image properties'], array($k => $v));
-			}
-
-			$res['All image profiles'] = array();
-			foreach ( $im->getImageProfiles() as $k => $v ) {
-				$res['All image profiles'] = array_merge($res['All image profiles'], array(
-					$k => '(size: ' . GeneralUtility::formatSize(strlen( $v ), ' | KB| MB| GB') . ')'
-				));
-			}
-
-			$im->destroy();
-			
-			return $res;				
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-			return '';
-		}
-	}
-
+    public function checkTextObj($conf)
+    {
+        $cObj = GeneralUtility::makeInstance(ContentObjectRenderer::class);
+        $cObj->start($this->data);
+        $isStdWrapped = [];
+        foreach ($conf as $key => $value) {
+            $parameter = rtrim($key, '.');
+            if (!$isStdWrapped[$parameter] && isset($conf[$parameter . '.'])) {
+                $conf[$parameter] = $cObj->stdWrap($conf[$parameter], $conf[$parameter . '.']);
+                $isStdWrapped[$parameter] = 1;
+            }
+        }
+        $conf['fontFile'] = $this->checkFile($conf['fontFile']);
+        if (!$conf['fontFile']) {
+            $conf['fontFile'] = ExtensionManagementUtility::siteRelPath('core') . 'Resources/Private/Font/nimbus.ttf';
+        }
+        if (!$conf['iterations']) {
+            $conf['iterations'] = 1;
+        }
+        if (!$conf['fontSize']) {
+            $conf['fontSize'] = 12;
+        }
+        // If any kind of spacing applys, we cannot use angles!!
+        if ($conf['spacing'] || $conf['wordSpacing']) {
+            $conf['angle'] = 0;
+        }
+        if (!isset($conf['antiAlias'])) {
+            $conf['antiAlias'] = 1;
+        }
+        $conf['fontColor'] = trim($conf['fontColor']);
+        // Strip HTML
+        if (!$conf['doNotStripHTML']) {
+            $conf['text'] = strip_tags($conf['text']);
+        }
+        $this->combinedTextStrings[] = strip_tags($conf['text']);
+        // Max length = 100 if automatic line braks are not defined:
+        if (!isset($conf['breakWidth']) || !$conf['breakWidth']) {
+            $tlen = (int)$conf['textMaxLength'] ?: 100;
+            $conf['text'] = mb_substr($conf['text'], 0, $tlen, 'utf-8');
+        }
+        if ((string)$conf['text'] != '') {
+            // Char range map thingie:
+            $fontBaseName = basename($conf['fontFile']);
+            if (is_array($this->charRangeMap[$fontBaseName])) {
+                // Initialize splitRendering array:
+                if (!is_array($conf['splitRendering.'])) {
+                    $conf['splitRendering.'] = [];
+                }
+                $cfgK = $this->charRangeMap[$fontBaseName]['cfgKey'];
+                // Do not impose settings if a splitRendering object already exists:
+                if (!isset($conf['splitRendering.'][$cfgK])) {
+                    // Set configuration:
+                    $conf['splitRendering.'][$cfgK] = 'charRange';
+                    $conf['splitRendering.'][$cfgK . '.'] = $this->charRangeMap[$fontBaseName]['charMapConfig'];
+                    // Multiplicator of fontsize:
+                    if ($this->charRangeMap[$fontBaseName]['multiplicator']) {
+                        $conf['splitRendering.'][$cfgK . '.']['fontSize'] = round($conf['fontSize'] * $this->charRangeMap[$fontBaseName]['multiplicator']);
+                    }
+                    // Multiplicator of pixelSpace:
+                    if ($this->charRangeMap[$fontBaseName]['pixelSpace']) {
+                        $travKeys = ['xSpaceBefore', 'xSpaceAfter', 'ySpaceBefore', 'ySpaceAfter'];
+                        foreach ($travKeys as $pxKey) {
+                            if (isset($conf['splitRendering.'][$cfgK . '.'][$pxKey])) {
+                                $conf['splitRendering.'][$cfgK . '.'][$pxKey] = round($conf['splitRendering.'][$cfgK . '.'][$pxKey] * ($conf['fontSize'] / $this->charRangeMap[$fontBaseName]['pixelSpace']));
+                            }
+                        }
+                    }
+                }
+            }
+            if (is_array($conf['splitRendering.'])) {
+                foreach ($conf['splitRendering.'] as $key => $value) {
+                    if (is_array($conf['splitRendering.'][$key])) {
+                        if (isset($conf['splitRendering.'][$key]['fontFile'])) {
+                            $conf['splitRendering.'][$key]['fontFile'] = $this->checkFile($conf['splitRendering.'][$key]['fontFile']);
+                        }
+                    }
+                }
+            }
+            return $conf;
+        }
+        return null;
+    }
 
     /**
-     * Creates proportional thumbnails
-     * 
-     * @param <object> $imObj 
-     * @param <int> $w - image width
-     * @param <int> $h - image height 
+     * Calculation of offset using "splitCalc" and insertion of dimensions from other GIFBUILDER objects.
+     *
+     * Example:
+     * Input: 2+2, 2*3, 123, [10.w]
+     * Output: 4,6,123,45  (provided that the width of object in position 10 was 45 pixels wide)
+     *
+     * @param string $string The string to resolve/calculate the result of. The string is divided by a comma first and each resulting part is calculated into an integer.
+     * @return string The resolved string with each part (separated by comma) returned separated by comma
+     * @access private
      */
-	private function imagickThumbProportional(&$imObj, $w, $h) {
-
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK');
-
-		if ($this->NO_IMAGICK) return;
-
-		// Resizes to whichever is larger, width or height
-		if ($imObj->getImageHeight() <= $imObj->getImageWidth()) {
-			// Resize image using the lanczos resampling algorithm based on width
-			$imObj->resizeImage($w, 0, \Imagick::FILTER_LANCZOS, 1);
-		} else {
-			// Resize image using the lanczos resampling algorithm based on height
-			$imObj->resizeImage(0, $h, \Imagick::FILTER_LANCZOS, 1);
-		}
-	}
-
+    public function calcOffset($string)
+    {
+        $value = [];
+        $numbers = GeneralUtility::trimExplode(',', $this->calculateFunctions($string));
+        foreach ($numbers as $key => $val) {
+            if ((string)$val == (string)(int)$val) {
+                $value[$key] = (int)$val;
+            } else {
+                $value[$key] = $this->calculateValue($val);
+            }
+        }
+        $string = implode(',', $value);
+        return $string;
+    }
 
     /**
-     * Creates cropped thumbnails
-     * 
-     * @param <object> $imObj 
-     * @param <int> $w - image width
-     * @param <int> $h - image height 
+     * Returns an "imgResource" creating an instance of the ContentObjectRenderer class and calling ContentObjectRenderer::getImgResource
+     *
+     * @param string $file Filename value OR the string "GIFBUILDER", see documentation in TSref for the "datatype" called "imgResource
+     * @param array $fileArray TypoScript properties passed to the function. Either GIFBUILDER properties or imgResource properties, depending on the value of $file (whether that is "GIFBUILDER" or a file reference)
+     * @return array|NULL Returns an array with file information from ContentObjectRenderer::getImgResource()
+     * @access private
+     * @see ContentObjectRenderer::getImgResource()
      */
-	private function imagickThumbCropped(&$imObj, $w, $h) {
-	
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK');
+    public function getResource($file, $fileArray)
+    {
+        if (!GeneralUtility::inList($this->imageFileExt, $fileArray['ext'])) {
+            $fileArray['ext'] = $this->gifExtension;
+        }
+        /** @var ContentObjectRenderer $cObj */
+        $cObj = GeneralUtility::makeInstance(ContentObjectRenderer::class);
+        $cObj->start($this->data);
+        return $cObj->getImgResource($file, $fileArray);
+    }
 
-		if ($this->NO_IMAGICK) return;
-
-		$imObj->cropThumbnailImage($w, $h);
-	}
-
-	
     /**
-     * Creates sampled thumbnails
-     * 
-     * @param <object> $imObj 
-     * @param <int> $w - image width
-     * @param <int> $h - image height 
+     * Returns the reference to a "resource" in TypoScript.
+     *
+     * @param string $file The resource value.
+     * @return string Returns the relative filepath
+     * @access private
+     * @see TemplateService::getFileName()
      */
-	private function imagickThumbSampled(&$imObj, $w, $h) {
+    public function checkFile($file)
+    {
+        return $GLOBALS['TSFE']->tmpl->getFileName($file);
+    }
 
-		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK');
-	
-		if ($this->NO_IMAGICK) return;
+    /**
+     * Calculates the GIFBUILDER output filename/path based on a serialized, hashed value of this->setup
+     * and prefixes the original filename
+     * also, the filename gets an additional prefix (max 100 characters),
+     * something like "GB_MD5HASH_myfilename_is_very_long_and_such.jpg"
+     *
+     * @param string $pre Filename prefix, eg. "GB_
+     * @return string The relative filepath (relative to PATH_site)
+     * @access private
+     */
+    public function fileName($pre)
+    {
+        /** @var $basicFileFunctions \TYPO3\CMS\Core\Utility\File\BasicFileUtility */
+        $basicFileFunctions = GeneralUtility::makeInstance(BasicFileUtility::class);
+        $filePrefix = implode('_', array_merge($this->combinedTextStrings, $this->combinedFileNames));
+        $filePrefix = $basicFileFunctions->cleanFileName($filePrefix);
 
-		$imObj->sampleImage($w, $h);
-	}	
+        // shorten prefix to avoid overly long file names
+        $filePrefix = substr($filePrefix, 0, 100);
 
-	
-	public function imagickThumbnailImage($fileIn, $fileOut, $w, $h) {
+        return 'typo3temp/' . $pre . $filePrefix . '_' . GeneralUtility::shortMD5(serialize($this->setup)) . '.' . $this->extension();
+    }
 
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($fileIn, $fileOut, $w, $h));
+    /**
+     * Returns the file extension used in the filename
+     *
+     * @return string Extension; "jpg" or "gif"/"png
+     * @access private
+     */
+    public function extension()
+    {
+        switch (strtolower($this->setup['format'])) {
+            case 'jpg':
 
-		if ($this->NO_IMAGICK) return;
+            case 'jpeg':
+                return 'jpg';
+                break;
+            case 'png':
+                return 'png';
+                break;
+            case 'gif':
+                return 'gif';
+                break;
+            default:
+                return $this->gifExtension;
+        }
+    }
 
-		$bRes = FALSE;
-		$imgDPI = intval($this->gfxConf['imagesDPI']);
-		
-		try {
-			$newIm = new \Imagick($fileIn);
-			if ($imgDPI > 0)
-				$newIm->setImageResolution($imgDPI, $imgDPI);
+    /**
+     * Calculates the value concerning the dimensions of objects.
+     *
+     * @param string $string The string to be calculated (e.g. "[20.h]+13")
+     * @return int The calculated value (e.g. "23")
+     * @see calcOffset()
+     */
+    protected function calculateValue($string)
+    {
+        $calculatedValue = 0;
+        $parts = GeneralUtility::splitCalc($string, '+-*/%');
+        foreach ($parts as $part) {
+            $theVal = $part[1];
+            $sign = $part[0];
+            if (((string)(int)$theVal) == ((string)$theVal)) {
+                $theVal = (int)$theVal;
+            } elseif ('[' . substr($theVal, 1, -1) . ']' == $theVal) {
+                $objParts = explode('.', substr($theVal, 1, -1));
+                $theVal = 0;
+                if (isset($this->objBB[$objParts[0]])) {
+                    if ($objParts[1] === 'w') {
+                        $theVal = $this->objBB[$objParts[0]][0];
+                    } elseif ($objParts[1] === 'h') {
+                        $theVal = $this->objBB[$objParts[0]][1];
+                    } elseif ($objParts[1] === 'lineHeight') {
+                        $theVal = $this->objBB[$objParts[0]][2]['lineHeight'];
+                    }
+                    $theVal = (int)$theVal;
+                }
+            } elseif ((float)$theVal) {
+                $theVal = (float)$theVal;
+            } else {
+                $theVal = 0;
+            }
+            if ($sign === '-') {
+                $calculatedValue -= $theVal;
+            } elseif ($sign === '+') {
+                $calculatedValue += $theVal;
+            } elseif ($sign === '/' && $theVal) {
+                $calculatedValue = $calculatedValue / $theVal;
+            } elseif ($sign === '*') {
+                $calculatedValue = $calculatedValue * $theVal;
+            } elseif ($sign === '%' && $theVal) {
+                $calculatedValue %= $theVal;
+            }
+        }
+        return round($calculatedValue);
+    }
 
-			if ($this->gfxConf['im_useStripProfileByDefault']) {
-				$newIm->stripImage();
-			}
-			
-			switch($this->gfxConf['thumbnailingMethod']) {
-				case 'CROPPED':
-					$this->imagickThumbCropped($newIm, $w, $h);
-					break;
-					
-				case 'SAMPLED':
-					$this->imagickThumbSampled($newIm, $w, $h);
-					break;
-					
-				default:
-					$this->imagickThumbProportional($newIm, $w, $h);
-					break;							
-			}
-	
-			$this->imagickOptimizeObject($newIm);
-	
-			$newIm->writeImage($fileOut);			
-			$newIm->destroy();
+    /**
+     * Calculates special functions:
+     * + max([10.h], [20.h])	-> gets the maximum of the given values
+     *
+     * @param string $string The raw string with functions to be calculated
+     * @return string The calculated values
+     */
+    protected function calculateFunctions($string)
+    {
+        if (preg_match_all('#max\\(([^)]+)\\)#', $string, $matches)) {
+            foreach ($matches[1] as $index => $maxExpression) {
+                $string = str_replace($matches[0][$index], $this->calculateMaximum($maxExpression), $string);
+            }
+        }
+        return $string;
+    }
 
-			$bRes = TRUE;
-		}
-		catch(\ImagickException $e) {
-			
-			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
-			if ($this->debug) {
-				$this->logger->error($sMsg);
-			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
-			}
-		}
-		
-		return $bRes;
-	}
-
-	/**
-	 *  @brief Checks if image format supports transparency
-	 *  
-	 *  @param [in] $strFile File path
-	 *  @return TRUE if supports, othervise FALSE
-	 */
-	private function ImageSupportsTransparency($strFile) {
-		
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($strFile));
-
-		$bRes = FALSE;
-		$fileExt = strtolower(pathinfo($strFile, PATHINFO_EXTENSION));
-		if (in_array($fileExt, $this->transparentFormats)) {
-			$bRes = TRUE;
-		}
-		if ($this->debug) $this->logger->debug(__METHOD__  . ' Transparency: ' . ($bRes ? 'TRUE' : 'FALSE'));
-		
-		return $bRes;
-	}
-
+    /**
+     * Calculates the maximum of a set of values defined like "[10.h],[20.h],1000"
+     *
+     * @param string $string The string to be used to calculate the maximum (e.g. "[10.h],[20.h],1000")
+     * @return int The maxium value of the given comma separated and calculated values
+     */
+    protected function calculateMaximum($string)
+    {
+        $parts = GeneralUtility::trimExplode(',', $this->calcOffset($string), true);
+        $maximum = !empty($parts) ? max($parts) : 0;
+        return $maximum;
+    }
 }
