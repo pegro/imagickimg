@@ -88,6 +88,7 @@ class LocalPreviewHelper extends \TYPO3\CMS\Core\Resource\Processing\LocalPrevie
 		if (TYPO3_DLOG)
 			GeneralUtility::devLog(__METHOD__, $this->extKey, 0, array($originalFileName, $temporaryFileName, $configuration));
 
+		/** @var $graphics GraphicalFunctions */
 		$graphics = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Imaging\GraphicalFunctions::class);
 
 		// Check file extension

@@ -235,4 +235,21 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 		return $this->imagick->IMreduceColors($file, $cols);
 	}
 
+	/**
+	 * Create thumbnail of given file and size.
+	 *
+	 * @param $fileIn string filename source
+	 * @param $fileOut string filename target
+	 * @param $w integer width
+	 * @param $h integer height
+	 * @return bool
+	 */
+	public function imagickThumbnailImage($fileIn, $fileOut, $w, $h) {
+		if ($this->NO_IMAGICK) {
+			return false;
+		}
+
+		return $this->imagick->imagickThumbnailImage($fileIn, $fileOut, $w, $h);
+	}
+
 }
