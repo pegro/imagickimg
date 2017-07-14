@@ -294,8 +294,10 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 					$this->imageMagickConvert_forceFileNameBody = '';
 				}
 				// Making the temporary filename:
-				$this->createTempSubDir('pics/');
-				$output = $this->absPrefix . $this->tempPath . 'pics/' . $this->filenamePrefix . $theOutputName . '.' . $newExt;				
+				//$this->createTempSubDir('pics/');
+				//$output = $this->absPrefix . $this->tempPath . 'pics/' . $this->filenamePrefix . $theOutputName . '.' . $newExt;				
+				GeneralUtility::mkdir_deep(PATH_site . 'typo3temp/assets/images/');
+				$output = $this->absPrefix . 'typo3temp/assets/images/' . $this->filenamePrefix . $theOutputName . '.' . $newExt;
 				
 				if (!GeneralUtility::isAbsPath($imagefile)) {
 					$imagefile = GeneralUtility::getFileAbsFileName($imagefile, FALSE);
@@ -344,7 +346,10 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 					if ($params) {
 						$info=$this->getImageDimensions($info[3]);
 					}
+					$this->logger->debug(__METHOD__  . ' Done', array($info));
 					return $info;
+				} else {
+					$this->logger->debug(__METHOD__  . ' Output doesnt exist');
 				}
 			}
 		}
@@ -919,7 +924,10 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 
 		if ($this->debug) $this->logger->debug(__METHOD__  . ' OK', array($file, $command));
 
-		if ($this->NO_IMAGICK || $this->NO_IM_EFFECTS || !$this->V5_EFFECTS) return;
+		if ($this->NO_IMAGICK || $this->NO_IM_EFFECTS) {
+			$this->logger->debug(__METHOD__  . ' Abort! ', array($this->NO_IMAGICK, $this->NO_IM_EFFECTS, !$this->V5_EFFECTS));
+			return;
+		}
 
 		$command = strtolower(trim($command));
 		$command = str_ireplace('-', '', $command);		
@@ -992,6 +1000,10 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 
 				case 'quality':
 					$this->imagickQuality($file, intval($elems[1]));
+					break;
+				
+				case 'crop':
+					$this->imagickCrop($file, $elems[1]);
 					break;
 			}
 		}
@@ -1878,13 +1890,13 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder {
 			$strVal = str_replace('!', '', $value);
 			$arr = GeneralUtility::trimExplode('+', $strVal);
 			$dims = $arr[0];
-			$W = $arr[1];
-			$h = $arr[2];
+			$x = $arr[1];
+			$y = $arr[2];
 			$arr = GeneralUtility::trimExplode('x', $dims);
-			$x = $arr[0];
-			$y = $arr[1];
+			$w = $arr[0];
+			$h = $arr[1];
 
-			$newIm->cropImage($w, $h, $w, $h);
+			$newIm->cropImage($w, $h, $x, $y);
 
 			$newIm->writeImage($file);
 			$newIm->destroy();

@@ -14,7 +14,7 @@ $EM_CONF[$_EXTKEY] = array(
 	'title' => 'Image Processing via Imagick',
 	'description' => 'Resize FE and BE images with Imagick PHP extension. Use all image effects available in standard CE elements like Image or Text with image. Useful on servers where exec() function is disabled.',
 	'category' => 'misc',
-	'version' => '0.4.0',
+	'version' => '0.5.0',
 	'state' => 'beta',
 	'uploadfolder' => 0,
 	'createDirs' => '',
@@ -24,8 +24,8 @@ $EM_CONF[$_EXTKEY] = array(
 	'author_company' => 'ImagickImgTeam',
 	'constraints' =>  array(
 		'depends' => array(
-			'typo3' => '6.2.0-7.6.99',
-			'php' => '5.3.7-5.5.99',
+			'typo3' => '6.2.0-8.7.99',
+			'php' => '5.3.7-7.0.99',
 		),
 		'conflicts' => array(
 		),

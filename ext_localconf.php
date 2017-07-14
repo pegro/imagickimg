@@ -44,7 +44,7 @@ if (extension_loaded('imagick')) {
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['gdlib'] = 1;
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['thumbnails'] = 1;
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_v5effects'] = 1;
-	$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_no_effects'] = 0;
+	$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_effects'] = 1;
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['gif_compress'] = 0; // Don't use TYPO3 work around. Imagick will compress the images.
 
 	// unserializing the extension configuration

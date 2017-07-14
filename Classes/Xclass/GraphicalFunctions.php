@@ -294,8 +294,10 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 					$this->imageMagickConvert_forceFileNameBody = '';
 				}
 				// Making the temporary filename:
-				$this->createTempSubDir('pics/');
-				$output = $this->absPrefix . $this->tempPath . 'pics/' . $this->filenamePrefix . $theOutputName . '.' . $newExt;				
+				//$this->createTempSubDir('pics/');
+				//$output = $this->absPrefix . $this->tempPath . 'pics/' . $this->filenamePrefix . $theOutputName . '.' . $newExt;				
+				GeneralUtility::mkdir_deep(PATH_site . 'typo3temp/assets/images/');
+				$output = $this->absPrefix . 'typo3temp/assets/images/' . $this->filenamePrefix . $theOutputName . '.' . $newExt;
 
 				if (!GeneralUtility::isAbsPath($imagefile)) {
 					$imagefile = GeneralUtility::getFileAbsFileName($imagefile, FALSE);
@@ -308,7 +310,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 					$fullOutput = $output;
 				}
 				
-				if ($this->dontCheckForExistingTempFile || !file_exists($output)) {
+				if ($this->dontCheckForExistingTempFile || !file_exists($fullOutput)) {
 
 					if ($this->debug) $this->logger->debug(__METHOD__ . ' Conversion', array($imagefile, $fullOutput));
 
@@ -337,7 +339,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 						}
 					}
 				}
-				if (file_exists($output))	{
+				if (file_exists($fullOutput))	{
 					$info[3] = $output;
 					$info[2] = $newExt;
 						// params could realisticly change some imagedata!
@@ -919,7 +921,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $command));
 
-		if ($this->NO_IMAGICK || $this->NO_IM_EFFECTS || !$this->V5_EFFECTS) return;
+		if ($this->NO_IMAGICK || $this->NO_IM_EFFECTS) return;
 
 		$command = strtolower(trim($command));
 		$command = str_ireplace('-', '', $command);		
