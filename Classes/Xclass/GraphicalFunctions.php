@@ -303,31 +303,28 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 					$imagefile = GeneralUtility::getFileAbsFileName($imagefile, FALSE);
 				}
 
-				$fullOutput = '';
 				if (!GeneralUtility::isAbsPath($output)) {
-					$fullOutput = GeneralUtility::getFileAbsFileName($output, FALSE);
-				} else {
-					$fullOutput = $output;
+					$output = GeneralUtility::getFileAbsFileName($output, FALSE);
 				}
 				
-				if ($this->dontCheckForExistingTempFile || !file_exists($fullOutput)) {
+				if ($this->dontCheckForExistingTempFile || !file_exists($output)) {
 
-					if ($this->debug) $this->logger->debug(__METHOD__ . ' Conversion', array($imagefile, $fullOutput));
+					if ($this->debug) $this->logger->debug(__METHOD__ . ' Conversion', array($imagefile, $output));
 
 					try {
 						$newIm = new \Imagick($imagefile);
 						$newIm->resizeImage($info[0], $info[1], $this->gfxConf['windowing_filter'], 1);
 
-						$newIm->writeImage($fullOutput);
+						$newIm->writeImage($output);
 						$newIm->destroy();
 						
 						// apply additional params (f.e. effects, compression)
 						if ($params) {
-							$this->applyImagickEffect($fullOutput, $params);
+							$this->applyImagickEffect($output, $params);
 						}
 						// Optimize image
-						$this->imagickOptimize($fullOutput);
-						GeneralUtility::fixPermissions($fullOutput);
+						$this->imagickOptimize($output);
+						GeneralUtility::fixPermissions($output);
 					}
 					catch(\ImagickException $e) {
 						
@@ -339,13 +336,14 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 						}
 					}
 				}
-				if (file_exists($fullOutput))	{
+				if (file_exists($output))	{
 					$info[3] = $output;
 					$info[2] = $newExt;
 						// params could realisticly change some imagedata!
 					if ($params) {
 						$info=$this->getImageDimensions($info[3]);
 					}
+					if($this->debug) $this->logger->debug(__METHOD__  . ' Done', array($info));
 					return $info;
 				}
 			}
