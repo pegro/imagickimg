@@ -23,6 +23,10 @@ namespace ImagickImgTeam\Imagickimg;
 *
 *  This copyright notice MUST APPEAR in all copies of the script!
 ***************************************************************/
+
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+use TYPO3\CMS\Reports\Status;
+
 /**
  * A checker which hooks into the backend module "Reports" checking whether
  * PHP extension imagick is loaded
@@ -44,7 +48,7 @@ class RequirementsCheckUtility implements \TYPO3\CMS\Reports\StatusProviderInter
 	/**
 	 * Check whether dbal extension is installed
 	 *
-	 * @return \TYPO3\CMS\Reports\Status
+	 * @return Status
 	 */
 	protected function checkIfImagickExtensionIsInstalled()
 	{
@@ -54,15 +58,17 @@ class RequirementsCheckUtility implements \TYPO3\CMS\Reports\StatusProviderInter
 		if (extension_loaded('imagick')) {
 			$value = $lang->sL('LLL:EXT:' . $extKey . '/Resources/Private/Language/locallang.xlf:imagick_loaded');
 			$message = '';
-			$severity = \TYPO3\CMS\Reports\Status::OK;
+			$severity = Status::OK;
 		} else {
 			$value = $lang->sL('LLL:EXT:' . $extKey . '/Resources/Private/Language/locallang.xlf:no_imagick_title');
 			$message = $lang->sL('LLL:EXT:' . $extKey . '/Resources/Private/Language/locallang.xlf:no_imagick_loaded');
-			$severity = \TYPO3\CMS\Reports\Status::ERROR;
+			$severity = Status::ERROR;
 		}
-		return \TYPO3\CMS\Core\Utility\GeneralUtility::makeInstance(
-			\TYPO3\CMS\Reports\Status::class, 
+		/** @var Status $status */
+		$status = GeneralUtility::makeInstance(
+			Status::class,
 			$lang->sL('LLL:EXT:' . $extKey . '/Resources/Private/Language/locallang.xlf:php_ext_imagick'), 
 			$value, $message, $severity);
+		return $status;
     }
 }
