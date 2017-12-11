@@ -30,14 +30,20 @@ if (extension_loaded('imagick')) {
 	);
 
 	// Imagick loaded, so turn on image processing
-	$GLOBALS['TYPO3_CONF_VARS']['GFX']['image_processing'] = 1;
-	$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled'] = 1;
-	$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path'] = ''; // Not necesary while using Imagick
-	$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path_lzw'] = ''; // Not necesary while using Imagick
-	$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_combine_filename'] = ''; // Not necesary while using Imagick
+	if (version_compare(TYPO3_version, '8.0', '>=')) {
+		$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled'] = 1;
+		$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path'] = ''; // Not necesary while using Imagick
+		$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path_lzw'] = ''; // Not necesary while using Imagick
+		$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_effects'] = 1;
+	} else { // older versions
+		$GLOBALS['TYPO3_CONF_VARS']['GFX']['image_processing'] = 1;
+		$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_path'] = ''; // Not necesary while using Imagick
+		$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_path_lzw'] = ''; // Not necesary while using Imagick
+		$GLOBALS['TYPO3_CONF_VARS']['GFX']['im'] = 1;
+		$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_v5effects'] = 1;
+	}
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['gdlib'] = 1;
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['thumbnails'] = 1;
-	$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_effects'] = 1;
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['gif_compress'] = 0; // Don't use TYPO3 work around. Imagick will compress the images.
 
 	// unserializing the extension configuration
