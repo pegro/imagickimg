@@ -294,7 +294,7 @@ class ImagickFunctions
 	 * @param string $output The relative (to PATH_site) image filepath, output filename (written to)
 	 * @return string
 	 */
-	public function combineExec($input, $overlay, $mask, $output) {
+	public function combineExec($input, $overlay, $mask, $output, $handleNegation = false) {
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($input, $overlay, $mask, $output));
 

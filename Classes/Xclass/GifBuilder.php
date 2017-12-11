@@ -135,13 +135,13 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 	 * @param string $output The relative (to PATH_site) image filepath, output filename (written to)
 	 * @return string
 	 */
-	public function combineExec($input, $overlay, $mask, $output) {
+	public function combineExec($input, $overlay, $mask, $output, $handleNegation = false) {
 
 		if ($this->NO_IMAGICK) {
-			return parent::combineExec($input, $overlay, $mask, $output);
+			return parent::combineExec($input, $overlay, $mask, $output, $handleNegation);
 		}
 
-		return $this->imagick->combineExec($input, $overlay, $mask, $output);
+		return $this->imagick->combineExec($input, $overlay, $mask, $output, $handleNegation);
 	}
 
 	/**

@@ -113,15 +113,16 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	 * @param string $overlay The relative (to PATH_site) image filepath, overlay file (top)
 	 * @param string $mask The relative (to PATH_site) image filepath, the mask file (grayscale)
 	 * @param string $output The relative (to PATH_site) image filepath, output filename (written to)
+	 * @param bool $handleNegation
 	 * @return string
 	 */
-	public function combineExec($input, $overlay, $mask, $output) {
+	public function combineExec($input, $overlay, $mask, $output, $handleNegation = false) {
 
 		if ($this->NO_IMAGICK) {
-			return parent::combineExec($input, $overlay, $mask, $output);
+			return parent::combineExec($input, $overlay, $mask, $output, $handleNegation);
 		}
 
-		return $this->imagick->combineExec($input, $overlay, $mask, $output);
+		return $this->imagick->combineExec($input, $overlay, $mask, $output, $handleNegation);
 	}
 
 	/**
