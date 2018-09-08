@@ -27,8 +27,6 @@ namespace ImagickImgTeam\Imagickimg\Xclass;
  *  This copyright notice MUST APPEAR in all copies of the script!
  ***************************************************************/
 
-use TYPO3\CMS\Core\Utility\GeneralUtility;
-
 class TestSetup extends \TYPO3\CMS\Install\Controller\Action\Tool\TestSetup {
 	
     /**
@@ -37,27 +35,15 @@ class TestSetup extends \TYPO3\CMS\Install\Controller\Action\Tool\TestSetup {
      * @return string Version
      */
     protected function determineImageMagickVersion() {
-		$version = 'Unknown';
+        /** @var \ImagickImgTeam\Imagickimg\Xclass\GraphicalFunctions $imageProcessor */
+        $imageProcessor = $this->initializeImageProcessor();
 
-		try {
-			/** @var \ImagickImgTeam\Imagickimg\Xclass\GraphicalFunctions $imageProcessor */
-			$imageProcessor = $this->initializeImageProcessor();
+        $verArr = $imageProcessor->getIMversion(FALSE);
+        $string = $verArr['versionString'];
 
-			$verArr = $imageProcessor->getIMversion(FALSE);
-			$string = $verArr['versionString'];
+        list(, $version) = explode('Magick', $string);
+        list($version) = explode(' ', trim($version));
 
-			list(, $version) = explode('Magick', $string);
-			list($version) = explode(' ', trim($version));
-			$version = trim($version);
-		}
-		catch(\ImagickException $e) {
-			
-			GeneralUtility::sysLog(
-				__METHOD__ . ' >> ' . $e->getMessage(),
-				$this->extKey,
-				GeneralUtility::SYSLOG_SEVERITY_ERROR);
-		}
-
-		return $version;
+		return trim($version);
     }	
 }
