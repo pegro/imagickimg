@@ -799,7 +799,7 @@ class ImagickFunctions
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK', array($file, $command));
 
-		if ($this->NO_IMAGICK || $this->graphicalFunctions->NO_IM_EFFECTS) return;
+		if ($this->NO_IMAGICK) return;
 
 		$command = strtolower(trim($command));
 		$command = str_ireplace('-', '', $command);
