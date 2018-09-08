@@ -58,10 +58,11 @@ class ImagickFunctions
 	/** @var  $graphicalFunctions GraphicalFunctions */
 	private $graphicalFunctions;
 
+    public static $extKey = 'imagickimg';
+
 	private $imagick_version = 'Unknown';
 	private $im_version = 'Unknown';
 	private $NO_IMAGICK = FALSE;
-	private $extKey = 'imagickimg';
 	private $debug = FALSE;
 	/** @var $logger \TYPO3\CMS\Core\Log\Logger */
 	private $logger;
@@ -84,7 +85,7 @@ class ImagickFunctions
 			if ($this->debug) {
 				$this->logger->error($sMsg);
 			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
+				GeneralUtility::sysLog($sMsg, self::$extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 			}
 		} else {
 
@@ -169,7 +170,7 @@ class ImagickFunctions
 			if ($this->debug) {
 				$this->logger->error($sMsg);
 			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
+				GeneralUtility::sysLog($sMsg, self::$extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 			}
 		}
 
@@ -233,7 +234,7 @@ class ImagickFunctions
 			if ($this->debug) {
 				$this->logger->error($sMsg);
 			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
+				GeneralUtility::sysLog($sMsg, self::$extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 			}
 		}
 		return $ret;
@@ -278,7 +279,7 @@ class ImagickFunctions
 			if ($this->debug) {
 				$this->logger->error($sMsg);
 			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
+				GeneralUtility::sysLog($sMsg, self::$extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 			}
 		}
 		return $arRes;
@@ -375,7 +376,7 @@ class ImagickFunctions
 			if ($this->debug) {
 				$this->logger->error($sMsg);
 			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
+				GeneralUtility::sysLog($sMsg, self::$extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 			}
 		}
 
@@ -442,7 +443,7 @@ class ImagickFunctions
 				if ($this->debug) {
 					$this->logger->error($sMsg);
 				} else {
-					GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
+					GeneralUtility::sysLog($sMsg, self::$extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 				}
 			}
 		}
@@ -512,7 +513,7 @@ class ImagickFunctions
 			if ($this->debug) {
 				$this->logger->error($sMsg);
 			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
+				GeneralUtility::sysLog($sMsg, self::$extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 			}
 			return [];
 		}
@@ -622,7 +623,7 @@ class ImagickFunctions
 			if ($this->debug) {
 				$this->logger->error($sMsg);
 			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
+				GeneralUtility::sysLog($sMsg, self::$extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 			}
 		}
 
@@ -766,7 +767,7 @@ class ImagickFunctions
 			if ($this->debug) {
 				$this->logger->error($sMsg);
 			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
+				GeneralUtility::sysLog($sMsg, self::$extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 			}
 		}
 	}
@@ -922,7 +923,7 @@ class ImagickFunctions
 			if ($this->debug) {
 				$this->logger->error($sMsg);
 			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
+				GeneralUtility::sysLog($sMsg, self::$extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 			}
 		}
 	}
@@ -973,7 +974,7 @@ class ImagickFunctions
 			if ($this->debug) {
 				$this->logger->error($sMsg);
 			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
+				GeneralUtility::sysLog($sMsg, self::$extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 			}
 			return FALSE;
 		}
@@ -1026,7 +1027,7 @@ class ImagickFunctions
 			if ($this->debug) {
 				$this->logger->error($sMsg);
 			} else {
-				GeneralUtility::sysLog($sMsg, $this->extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
+				GeneralUtility::sysLog($sMsg, self::$extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
 			}
 			return FALSE;
 		}
