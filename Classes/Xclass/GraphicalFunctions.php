@@ -52,7 +52,10 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	 */
 	public function init() {
 
-		$this->imagick = GeneralUtility::makeInstance(ImagickFunctions::class);
+        if (TYPO3_DLOG)
+            GeneralUtility::devLog(__METHOD__ . ' called', ImagickFunctions::$extKey);
+
+        $this->imagick = GeneralUtility::makeInstance(ImagickFunctions::class);
 
 		$this->NO_IMAGICK = $this->imagick->init($this);
 
@@ -97,8 +100,11 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	 * @return	array
 	 */	 
 	public function imageMagickIdentify($imagefile) {
-		
-		if ($this->NO_IMAGICK) {
+
+        if (TYPO3_DLOG)
+            GeneralUtility::devLog(__METHOD__ . ' called', ImagickFunctions::$extKey);
+
+        if ($this->NO_IMAGICK) {
 			return parent::imageMagickIdentify($imagefile);
 		}
 
@@ -147,6 +153,9 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	 */
 	public static function gifCompress($theFile, $type)
 	{
+        if (TYPO3_DLOG)
+            GeneralUtility::devLog(__METHOD__ . ' called', ImagickFunctions::$extKey);
+
 		$gfxConf = $GLOBALS['TYPO3_CONF_VARS']['GFX'];
 		if (!$gfxConf['gif_compress'] || strtolower(substr($theFile, -4, 4)) !== '.gif') {
 			return '';
@@ -194,7 +203,10 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	 */
 	public static function readPngGif($theFile, $output_png = false)
 	{
-		if (!$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled'] || !@is_file($theFile)) {
+        if (TYPO3_DLOG)
+            GeneralUtility::devLog(__METHOD__ . ' called', ImagickFunctions::$extKey);
+
+        if (!$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled'] || !@is_file($theFile)) {
 			return null;
 		}
 

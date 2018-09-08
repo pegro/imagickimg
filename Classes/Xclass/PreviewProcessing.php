@@ -29,6 +29,9 @@ namespace ImagickImgTeam\Imagickimg\Xclass;
  *  This copyright notice MUST APPEAR in all copies of the script!
  ***************************************************************/
 
+use ImagickImgTeam\Imagickimg\Imaging\ImagickFunctions;
+use TYPO3\CMS\Core\Utility\GeneralUtility;
+
 class PreviewProcessing extends \TYPO3\CMS\Core\Resource\OnlineMedia\Processing\PreviewProcessing {
 
 	/**
@@ -40,7 +43,10 @@ class PreviewProcessing extends \TYPO3\CMS\Core\Resource\OnlineMedia\Processing\
 	 */
 	protected function resizeImage($originalFileName, $temporaryFileName, $configuration)
 	{
-		// Create the temporary file
+        if (TYPO3_DLOG)
+            GeneralUtility::devLog(__METHOD__, ImagickFunctions::$extKey);
+
+        // Create the temporary file
 		if (empty($GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled'])) {
 			return;
 		}

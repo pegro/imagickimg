@@ -166,7 +166,10 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 	 */
 	public static function gifCompress($theFile, $type)
 	{
-		$gfxConf = $GLOBALS['TYPO3_CONF_VARS']['GFX'];
+        if (TYPO3_DLOG)
+            GeneralUtility::devLog(__METHOD__ . ' called '.__METHOD__, ImagickFunctions::$extKey);
+
+        $gfxConf = $GLOBALS['TYPO3_CONF_VARS']['GFX'];
 		if (!$gfxConf['gif_compress'] || strtolower(substr($theFile, -4, 4)) !== '.gif') {
 			return '';
 		}
@@ -213,7 +216,10 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 	 */
 	public static function readPngGif($theFile, $output_png = false)
 	{
-		if (!$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled'] || !@is_file($theFile)) {
+        if (TYPO3_DLOG)
+            GeneralUtility::devLog(__METHOD__ . ' called '.__METHOD__, ImagickFunctions::$extKey);
+
+        if (!$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled'] || !@is_file($theFile)) {
 			return null;
 		}
 
