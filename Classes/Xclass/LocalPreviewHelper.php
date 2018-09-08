@@ -27,15 +27,12 @@ namespace ImagickImgTeam\Imagickimg\Xclass;
  *  This copyright notice MUST APPEAR in all copies of the script!
  ***************************************************************/
 
+use ImagickImgTeam\Imagickimg\Imaging\ImagickFunctions;
 use TYPO3\CMS\Core\Resource\File;
 use TYPO3\CMS\Core\Resource\Processing\LocalImageProcessor;
-use TYPO3\CMS\Core\Resource\Processing\TaskInterface;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
-use TYPO3\CMS\Core\Utility\MathUtility;
 
 class LocalPreviewHelper extends \TYPO3\CMS\Core\Resource\Processing\LocalPreviewHelper {
-
-	private $extKey = 'imagickimg';
 
 	/**
 	 * @param $processor LocalImageProcessor $processor
@@ -43,89 +40,89 @@ class LocalPreviewHelper extends \TYPO3\CMS\Core\Resource\Processing\LocalPrevie
 	public function __construct(LocalImageProcessor $processor) {
 
 		if (TYPO3_DLOG)
-			GeneralUtility::devLog(__METHOD__, $this->extKey);
+			GeneralUtility::devLog(__METHOD__, ImagickFunctions::$extKey);
 
 		parent::__construct($processor);
 	}
  
- 	/**
-	 * TODO just override generatePreviewFromFile instead of complete process method
-	 *
-	 * This method actually does the processing of files locally
-	 *
-	 * takes the original file (on remote storages this will be fetched from the remote server)
-	 * does the IM magic on the local server by creating a temporary typo3temp/ file
-	 * copies the typo3temp/ file to the processing folder of the target storage
-	 * removes the typo3temp/ file
-	 *
-	 * @param $task TaskInterface $task
-	 * @return array
-	 */
-	public function process(TaskInterface $task) {
-	
-		if (TYPO3_DLOG)
-			GeneralUtility::devLog(__METHOD__, $this->extKey);
+    /**
+     * Generates a preview for a file
+     *
+     * @param File $file The source file
+     * @param array $configuration Processing configuration
+     * @param string $targetFilePath Output file path
+     * @return array
+     */
+    protected function generatePreviewFromFile(File $file, array $configuration, $targetFilePath)
+    {
+        if (TYPO3_DLOG)
+            GeneralUtility::devLog(__METHOD__, ImagickFunctions::$extKey);
 
-		$targetFile = $task->getTargetFile();
+        // Check file extension
+        if ($file->getType() !== File::FILETYPE_IMAGE
+            && !GeneralUtility::inList($GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'], $file->getExtension())
+        ) {
+            // Create a default image
+            $graphicalFunctions = GeneralUtility::makeInstance(GraphicalFunctions::class);
+            $graphicalFunctions->getTemporaryImageWithText(
+                $targetFilePath,
+                'Not imagefile!',
+                'No ext!',
+                $file->getName()
+            );
+            return [
+                'filePath' => $targetFilePath,
+            ];
+        }
 
-			// Merge custom configuration with default configuration
-		$configuration = array_merge(array('width' => 64, 'height' => 64), $task->getConfiguration());
-		$configuration['width'] = MathUtility::forceIntegerInRange($configuration['width'], 1, 1000);
-		$configuration['height'] = MathUtility::forceIntegerInRange($configuration['height'], 1, 1000);
+        $originalFileName = $file->getForLocalProcessing(false);
 
-		$originalFileName = $targetFile->getOriginalFile()->getForLocalProcessing(FALSE);
+        if (TYPO3_DLOG)
+            GeneralUtility::devLog(__METHOD__, ImagickFunctions::$extKey, 0, array($originalFileName, $targetFilePath, $configuration));
 
-			// Create a temporary file in typo3temp/
-		if ($targetFile->getOriginalFile()->getExtension() === 'jpg') {
-			$targetFileExtension = '.jpg';
-		} else {
-			$targetFileExtension = '.png';
-		}
+        if ($file->getExtension() === 'svg') {
+            /** @var $gifBuilder \TYPO3\CMS\Frontend\Imaging\GifBuilder */
+            $gifBuilder = GeneralUtility::makeInstance(\TYPO3\CMS\Frontend\Imaging\GifBuilder::class);
+            $gifBuilder->init();
+            $gifBuilder->absPrefix = PATH_site;
+            $info = $gifBuilder->getImageDimensions($originalFileName);
+            $newInfo = $gifBuilder->getImageScale($info, $configuration['width'], $configuration['height'], []);
+            $result = [
+                'width' => $newInfo[0],
+                'height' => $newInfo[1],
+                'filePath' => '' // no file = use original
+            ];
+        } else {
+            // Create the temporary file
+            if (TYPO3_DLOG)
+                GeneralUtility::devLog(__METHOD__ . ' executing GraphicalFunctions->imagickThumbnailImage', ImagickFunctions::$extKey);
 
-			// Create the thumb filename in typo3temp/preview_....jpg
-		$temporaryFileName = GeneralUtility::tempnam('preview_') . $targetFileExtension;
+            $graphicalFunctions = GeneralUtility::makeInstance(GraphicalFunctions::class);
+            $graphicalFunctions->init();
+            $graphicalFunctions->mayScaleUp = 0;
+            $graphicalFunctions->imagickThumbnailImage(
+                $originalFileName,
+                $targetFilePath,
+                $configuration['width'],
+                $configuration['height']
+            );
 
-		if (TYPO3_DLOG)
-			GeneralUtility::devLog(__METHOD__, $this->extKey, 0, array($originalFileName, $temporaryFileName, $configuration));
+            if (!file_exists($targetFilePath)) {
+                // Create an error gif
+                $graphicalFunctions = GeneralUtility::makeInstance(GraphicalFunctions::class);
+                $graphicalFunctions->getTemporaryImageWithText(
+                    $targetFilePath,
+                    'No thumb',
+                    'generated!',
+                    $file->getName()
+                );
+            }
+            $result = [
+                'filePath' => $targetFilePath,
+            ];
+        }
 
-		/** @var $graphics GraphicalFunctions */
-		$graphics = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Imaging\GraphicalFunctions::class);
-
-		// Check file extension
-		if ($targetFile->getOriginalFile()->getType() != File::FILETYPE_IMAGE &&
-			!GeneralUtility::inList($GLOBALS['TYPO3_CONF_VARS']['GFX']['imagefile_ext'], $targetFile->getOriginalFile()->getExtension())) {
-				// Create a default image
-			$graphics->getTemporaryImageWithText($temporaryFileName, 'Not imagefile!', 'No ext!', $targetFile->getOriginalFile()->getName());
-		} else {
-
-			if (TYPO3_DLOG)
-				GeneralUtility::devLog(__METHOD__ . ' Create the temporary file', $this->extKey);
-		
-				// Create the temporary file
-			if (TYPO3_DLOG)
-				GeneralUtility::devLog(__METHOD__ . ' executing GraphicalFunctions->imagickThumbnailImage', $this->extKey);
-			
-			$graphics->init();
-			$graphics->mayScaleUp = 0;
-			$graphics->imagickThumbnailImage(
-				$originalFileName,
-				$temporaryFileName,
-				$configuration['width'],
-				$configuration['height']
-			);
-			
-			if (!file_exists($temporaryFileName)) {
-				if (TYPO3_DLOG)
-					GeneralUtility::devLog(__METHOD__ . ' file: ' . $temporaryFileName . ' doesn\'t exists', $this->extKey);
-					// Create a error gif
-				$graphics->getTemporaryImageWithText($temporaryFileName, 'No thumb', 'generated!', $targetFile->getOriginalFile()->getName());
-			}
-			
-		}
-
-		return array(
-			'filePath' => $temporaryFileName,
-		);
-	}
+        return $result;
+    }
 
 }
