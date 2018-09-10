@@ -4,6 +4,8 @@ namespace ImagickImgTeam\Imagickimg\Xclass;
 /***************************************************************
  *  Copyright notice
  *
+ *  (c) 2016 Tomasz Krawczyk <tomasz@typo3.pl>
+ *  (c) 2017 Peter Große <pegro@friiks.de>
  *  All rights reserved
  *
  *  This script is part of the TYPO3 project. The TYPO3 project is
@@ -72,6 +74,9 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 	 */
 	public function init() {
 
+		if (TYPO3_DLOG)
+			GeneralUtility::devLog(__METHOD__ . ' called', ImagickFunctions::$extKey);
+
 		$this->imagick = GeneralUtility::makeInstance(ImagickFunctions::class);
 
 		$this->NO_IMAGICK = $this->imagick->init($this);
@@ -102,6 +107,9 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 	 */
 	public function imageMagickExec($input, $output, $params, $frame = 0) {
 
+		if (TYPO3_DLOG)
+			GeneralUtility::devLog(__METHOD__ . ' called', ImagickFunctions::$extKey);
+
 		if ($this->NO_IMAGICK) {
 			return parent::imageMagickExec($input, $output, $params, $frame);
 		}
@@ -118,6 +126,9 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 	 */
 	public function imageMagickIdentify($imagefile) {
 
+		if (TYPO3_DLOG)
+			GeneralUtility::devLog(__METHOD__ . ' called', ImagickFunctions::$extKey);
+
 		if ($this->NO_IMAGICK) {
 			return parent::imageMagickIdentify($imagefile);
 		}
@@ -133,9 +144,13 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 	 * @param string $overlay The relative (to PATH_site) image filepath, overlay file (top)
 	 * @param string $mask The relative (to PATH_site) image filepath, the mask file (grayscale)
 	 * @param string $output The relative (to PATH_site) image filepath, output filename (written to)
+	 * @param bool $handleNegation
 	 * @return string
 	 */
 	public function combineExec($input, $overlay, $mask, $output, $handleNegation = false) {
+
+		if (TYPO3_DLOG)
+			GeneralUtility::devLog(__METHOD__ . ' called', ImagickFunctions::$extKey);
 
 		if ($this->NO_IMAGICK) {
 			return parent::combineExec($input, $overlay, $mask, $output, $handleNegation);
@@ -145,8 +160,6 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 	}
 
 	/**
-	 * TODO convert to imagick
-	 *
 	 * Compressing a GIF file if not already LZW compressed.
 	 * This function is a workaround for the fact that ImageMagick and/or GD does not compress GIF-files to their minimun size (that is RLE or no compression used)
 	 *
@@ -166,8 +179,8 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 	 */
 	public static function gifCompress($theFile, $type)
 	{
-        if (TYPO3_DLOG)
-            GeneralUtility::devLog(__METHOD__ . ' called '.__METHOD__, ImagickFunctions::$extKey);
+		if (TYPO3_DLOG)
+			GeneralUtility::devLog(__METHOD__ . ' called', ImagickFunctions::$extKey);
 
         $gfxConf = $GLOBALS['TYPO3_CONF_VARS']['GFX'];
 		if (!$gfxConf['gif_compress'] || strtolower(substr($theFile, -4, 4)) !== '.gif') {
@@ -205,8 +218,6 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 	}
 
 	/**
-	 * TODO convert to imagick
-	 *
 	 * Returns filename of the png/gif version of the input file (which can be png or gif).
 	 * If input file type does not match the wanted output type a conversion is made and temp-filename returned.
 	 *
@@ -216,8 +227,8 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 	 */
 	public static function readPngGif($theFile, $output_png = false)
 	{
-        if (TYPO3_DLOG)
-            GeneralUtility::devLog(__METHOD__ . ' called '.__METHOD__, ImagickFunctions::$extKey);
+		if (TYPO3_DLOG)
+			GeneralUtility::devLog(__METHOD__ . ' called', ImagickFunctions::$extKey);
 
         if (!$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled'] || !@is_file($theFile)) {
 			return null;

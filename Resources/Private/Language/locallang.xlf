@@ -51,24 +51,6 @@
 			<trans-unit id="imagick.not.loaded.message">
 				<source>PHP extension Imagick is not loaded. Imagickimg can not do image processing.</source>
 			</trans-unit>
-			<trans-unit id="module.info">
-				<source>Information</source>
-			</trans-unit>
-			<trans-unit id="module.info.title">
-				<source>PHP extension Imagick and ImageImagick version information</source>
-			</trans-unit>
-			<trans-unit id="module.info.version.imagick">
-				<source>PHP extension Imagick version</source>
-			</trans-unit>
-			<trans-unit id="module.info.version.im">
-				<source>ImageImagick version</source>
-			</trans-unit>
-			<trans-unit id="module.tests">
-				<source>Tests</source>
-			</trans-unit>
-			<trans-unit id="module.tests.title">
-				<source>Imagick graphics processing tests</source>
-			</trans-unit>
 			<trans-unit id="imagick_loaded">
 				<source>Imagick is loaded</source>
 			</trans-unit>

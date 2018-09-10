@@ -49,6 +49,7 @@ namespace ImagickImgTeam\Imagickimg\Imaging;
  ***************************************************************/
 
 use TYPO3\CMS\Core\Imaging\GraphicalFunctions;
+use TYPO3\CMS\Core\Log\LogManager;
 use TYPO3\CMS\Core\Utility\GeneralUtility;
 use TYPO3\CMS\Core\Utility\MathUtility;
 
@@ -73,7 +74,7 @@ class ImagickFunctions
 		$this->debug = $GLOBALS['TYPO3_CONF_VARS']['GFX']['imagick_debug'];
 
 		if ($this->debug) {
-			$this->logger = GeneralUtility::makeInstance('TYPO3\CMS\Core\Log\LogManager')->getLogger(__CLASS__);
+			$this->logger = GeneralUtility::makeInstance(LogManager::class)->getLogger(__CLASS__);
 			$this->logger->debug(__METHOD__ . ' OK');
 		}
 
@@ -551,13 +552,24 @@ class ImagickFunctions
 	 * @param integer $w - image width
 	 * @param integer $h - image height
 	 */
-	private function imagickThumbCropped(&$imObj, $w, $h) {
+	private function imagickThumbCropped(&$imObj, $w, $h)
+	{
 
 		if ($this->debug) $this->logger->debug(__METHOD__ . ' OK');
 
 		if ($this->NO_IMAGICK) return;
 
-		$imObj->cropThumbnailImage($w, $h);
+		try {
+			$imObj->cropThumbnailImage($w, $h);
+		} catch(\ImagickException $e) {
+
+			$sMsg = __METHOD__ . ' >> ' . $e->getMessage();
+			if ($this->debug) {
+				$this->logger->error($sMsg);
+			} else {
+				GeneralUtility::sysLog($sMsg, self::$extKey, GeneralUtility::SYSLOG_SEVERITY_WARNING);
+			}
+		}
 	}
 
 
@@ -806,7 +818,7 @@ class ImagickFunctions
 		$command = str_ireplace('-', '', $command);
 		$params = GeneralUtility::trimExplode(' ', $command, true);
 
-		if ($this->debug) $this->logger->debug('Elems', array($file, $params));
+		if ($this->debug) $this->logger->debug('Parameters', array($file, $params));
 
 		try {
 
