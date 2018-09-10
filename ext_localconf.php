@@ -2,16 +2,14 @@
 if (!defined ('TYPO3_MODE')) die ('Access denied.');
 
 // Disable image processing before check if PHP extension Imagick is loaded.
-$GLOBALS['TYPO3_CONF_VARS']['GFX']['image_processing'] = 0;
-$GLOBALS['TYPO3_CONF_VARS']['GFX']['im'] = 0;
+$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled'] = 0;
 $GLOBALS['TYPO3_CONF_VARS']['GFX']['gdlib'] = 0;
 $GLOBALS['TYPO3_CONF_VARS']['GFX']['thumbnails'] = 0;
 
-// Hooks
-// Show warning in About module if PHP extension Imagick is not loaded
-$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['t3lib/class.t3lib_befunc.php']['displayWarningMessages'][$_EXTKEY] = \ImagickImgTeam\Imagickimg\WarningMessagePostProcessor::class;
-// Show warning in Reports module if PHP extension Imagick is not loaded
-$GLOBALS['TYPO3_CONF_VARS']['SC_OPTIONS']['reports']['tx_reports']['status']['providers'][$_EXTKEY][] = \ImagickImgTeam\Imagickimg\RequirementsCheckUtility::class; 
+if (version_compare(TYPO3_version, '8.0', '<')) { // some compat with older versions
+    $GLOBALS['TYPO3_CONF_VARS']['GFX']['image_processing'] = 0;
+    $GLOBALS['TYPO3_CONF_VARS']['GFX']['im'] = 0;
+}
 
 if (extension_loaded('imagick')) {
 	
@@ -30,17 +28,19 @@ if (extension_loaded('imagick')) {
 	);
 
 	// Imagick loaded, so turn on image processing
-	if (version_compare(TYPO3_version, '8.0', '>=')) {
-		$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled'] = 1;
-		$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path'] = ''; // Not necesary while using Imagick
-		$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path_lzw'] = ''; // Not necesary while using Imagick
-		$GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_effects'] = 1;
-	} else { // older versions
+    $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_enabled'] = 1;
+    $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path'] = ''; // Not necesary while using Imagick
+    $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path_lzw'] = ''; // Not necesary while using Imagick
+    $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_effects'] = 1;
+    if (version_compare(TYPO3_version, '8.0', '<')) { // some compat with older versions
 		$GLOBALS['TYPO3_CONF_VARS']['GFX']['image_processing'] = 1;
 		$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_path'] = ''; // Not necesary while using Imagick
 		$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_path_lzw'] = ''; // Not necesary while using Imagick
 		$GLOBALS['TYPO3_CONF_VARS']['GFX']['im'] = 1;
 		$GLOBALS['TYPO3_CONF_VARS']['GFX']['im_v5effects'] = 1;
+	    $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_stripColorProfileByDefault'] = $GLOBALS['TYPO3_CONF_VARS']['GFX']['im_useStripProfileByDefault'];
+	    $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_stripColorProfileCommand'] = $GLOBALS['TYPO3_CONF_VARS']['GFX']['im_stripProfileCommand'];
+
 	}
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['gdlib'] = 1;
 	$GLOBALS['TYPO3_CONF_VARS']['GFX']['thumbnails'] = 1;

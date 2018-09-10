@@ -702,12 +702,12 @@ class ImagickFunctions
 
 		if ($this->NO_IMAGICK) return;
 
-		if ($GLOBALS['TYPO3_CONF_VARS']['GFX']['im_useStripProfileByDefault']) {
+		if ($GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_stripColorProfileByDefault']) {
 
-			$profile = $GLOBALS['TYPO3_CONF_VARS']['GFX']['im_stripProfileCommand'];
+			$profile = $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_stripColorProfileCommand'];
 			if (substr($profile, 0, 1) == '+') {
 				// remove profiles
-				if ( $GLOBALS['TYPO3_CONF_VARS']['GFX']['im_stripProfileCommand'] == '+profile \'*\'') {
+				if ( $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_stripColorProfileCommand'] == '+profile \'*\'') {
 					// remove all profiles and comments
 					$imageObj->stripImage();
 				}
