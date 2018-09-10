@@ -71,7 +71,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
      */
 	public function getIMversion($returnString = TRUE) {
 		return $this->imagick->getIMversion($returnString);
-	}	
+	}
 
 	/**
 	 * Executes a ImageMagick "convert" on two filenames, $input and $output using $params before them.
@@ -101,7 +101,7 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	 *
 	 * @param	string	$imagefile	The relative (to PATH_site) image filepath
 	 * @return	array
-	 */	 
+	 */
 	public function imageMagickIdentify($imagefile) {
 
 		if (TYPO3_DLOG)
@@ -138,8 +138,6 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	}
 
 	/**
-	 * TODO convert to imagick
-	 *
 	 * Compressing a GIF file if not already LZW compressed.
 	 * This function is a workaround for the fact that ImageMagick and/or GD does not compress GIF-files to their minimun size (that is RLE or no compression used)
 	 *
@@ -172,10 +170,9 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			$temporaryName = dirname($theFile) . '/' . md5(uniqid('', true)) . '.gif';
 			// Rename could fail, if a simultaneous thread is currently working on the same thing
 			if (@rename($theFile, $temporaryName)) {
-				/*
-				$cmd = CommandUtility::imageMagickCommand('convert', '"' . $temporaryName . '" "' . $theFile . '"', $gfxConf['processor_path_lzw']);
-				CommandUtility::exec($cmd);
-				*/
+				$graphicalFunctions = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Imaging\GraphicalFunctions::class);
+				$graphicalFunctions->init();
+				$graphicalFunctions->imageMagickExec($temporaryName, $theFile, '');
 				unlink($temporaryName);
 			}
 			$returnCode = 'IM';
@@ -198,8 +195,6 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 	}
 
 	/**
-	 * TODO convert to imagick
-	 *
 	 * Returns filename of the png/gif version of the input file (which can be png or gif).
 	 * If input file type does not match the wanted output type a conversion is made and temp-filename returned.
 	 *
@@ -225,12 +220,11 @@ class GraphicalFunctions extends \TYPO3\CMS\Core\Imaging\GraphicalFunctions {
 			GeneralUtility::mkdir_deep(PATH_site . 'typo3temp/assets/images/');
 		}
 		$newFile = PATH_site . 'typo3temp/assets/images/' . md5($theFile . '|' . filemtime($theFile)) . ($output_png ? '.png' : '.gif');
-		/*
-		$cmd = CommandUtility::imageMagickCommand(
-			'convert', '"' . $theFile . '" "' . $newFile . '"', $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path']
-		);
-		CommandUtility::exec($cmd);
-		*/
+
+		$graphicalFunctions = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Imaging\GraphicalFunctions::class);
+		$graphicalFunctions->init();
+		$graphicalFunctions->imageMagickExec($theFile, $newFile, '');
+
 		if (@is_file($newFile)) {
 			GeneralUtility::fixPermissions($newFile);
 			return $newFile;

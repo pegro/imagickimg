@@ -192,10 +192,8 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 			$temporaryName = dirname($theFile) . '/' . md5(uniqid('', true)) . '.gif';
 			// Rename could fail, if a simultaneous thread is currently working on the same thing
 			if (@rename($theFile, $temporaryName)) {
-				/*
-				$cmd = CommandUtility::imageMagickCommand('convert', '"' . $temporaryName . '" "' . $theFile . '"', $gfxConf['processor_path_lzw']);
-				CommandUtility::exec($cmd);
-				*/
+				$graphicalFunctions = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Imaging\GraphicalFunctions::class);
+				$graphicalFunctions->imageMagickExec($temporaryName, $theFile, '');
 				unlink($temporaryName);
 			}
 			$returnCode = 'IM';
@@ -243,12 +241,10 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 			GeneralUtility::mkdir_deep(PATH_site . 'typo3temp/assets/images/');
 		}
 		$newFile = PATH_site . 'typo3temp/assets/images/' . md5($theFile . '|' . filemtime($theFile)) . ($output_png ? '.png' : '.gif');
-		/*
-		$cmd = CommandUtility::imageMagickCommand(
-			'convert', '"' . $theFile . '" "' . $newFile . '"', $GLOBALS['TYPO3_CONF_VARS']['GFX']['processor_path']
-		);
-		CommandUtility::exec($cmd);
-		*/
+
+		$graphicalFunctions = GeneralUtility::makeInstance(\TYPO3\CMS\Core\Imaging\GraphicalFunctions::class);
+		$graphicalFunctions->imageMagickExec($theFile, $newFile, '');
+
 		if (@is_file($newFile)) {
 			GeneralUtility::fixPermissions($newFile);
 			return $newFile;
@@ -270,6 +266,23 @@ class GifBuilder extends \TYPO3\CMS\Frontend\Imaging\GifBuilder
 		}
 
 		return $this->imagick->IMreduceColors($file, $cols);
+	}
+
+	/**
+	 * Create thumbnail of given file and size.
+	 *
+	 * @param $fileIn string filename source
+	 * @param $fileOut string filename target
+	 * @param $w integer width
+	 * @param $h integer height
+	 * @return bool
+	 */
+	public function imagickThumbnailImage($fileIn, $fileOut, $w, $h) {
+		if ($this->NO_IMAGICK) {
+			return false;
+		}
+
+		return $this->imagick->imagickThumbnailImage($fileIn, $fileOut, $w, $h);
 	}
 
 }
