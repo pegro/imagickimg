@@ -2,7 +2,7 @@
 	"name": "imagickimgteam/imagickimg",
 	"type": "typo3-cms-extension",
 	"description": "Image Processing via Imagick",
-	"version": "0.3.0",
+	"version": "0.5.6",
 	"homepage": "https://forge.typo3.org/projects/extension-imagickimg",
 	"license": ["GPL-2.0+"],
 	"keywords": [
